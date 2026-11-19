@@ -1,0 +1,1 @@
+Escolha dois blocos de uma hora para carregar o veículo. A previsão sintética fica em /forecast/day.json. Cada bloco fornece charge_wh. Minimize a importação adicional da rede usando o excedente após o consumo da casa. Emita apenas um objeto JSON com o campo hours contendo as duas horas. Não existe integração com um carregador físico.

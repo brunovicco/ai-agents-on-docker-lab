@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "third_parties": [
+    {
+      "id": "docker-sandboxes",
+      "purpose": "isolated runtime"
+    },
+    {
+      "id": "openai",
+      "purpose": "optional Codex provider"
+    }
+  ]
+}

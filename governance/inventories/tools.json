@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "tools": [
+    {
+      "id": "forecast_day",
+      "access": "read"
+    },
+    {
+      "id": "dispatch.verify",
+      "access": "operator only"
+    }
+  ]
+}

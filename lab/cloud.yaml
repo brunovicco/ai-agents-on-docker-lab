@@ -1,0 +1,5 @@
+schemaVersion: "1"
+name: solar-dispatch-cloud
+agent: shell
+env:
+  PYTHONPATH: /tmp/solar-src

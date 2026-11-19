@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "mcp_servers": [
+    {
+      "id": "solar-forecast",
+      "transport": "stdio",
+      "scope": "read-only synthetic fixture"
+    }
+  ]
+}

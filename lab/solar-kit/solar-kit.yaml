@@ -1,0 +1,12 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: Solar Dispatch
+description: Compute an EV charging proposal from the mounted forecast
+build: |
+  FROM scratch
+  COPY --chmod=0755 solar-plan /usr/local/bin/solar-plan
+capabilities:
+  - type: com.docker.sandbox/agent-context@1
+    config:
+      contentFile: ./context.md

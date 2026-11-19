@@ -1,0 +1,19 @@
+schemaVersion: "1"
+name: solar-dispatch
+agent: shell
+workspace: ./desk
+additionalWorkspaces:
+  - path: ./forecast
+    target: /forecast
+    readOnly: true
+  - path: ../src
+    target: /lab-src
+    readOnly: true
+env:
+  PYTHONPATH: /lab-src
+  PYTHONDONTWRITEBYTECODE: "1"
+sandboxOptions:
+  cpus: 2
+  memory: 4g
+kits:
+  - source: ./solar-kit

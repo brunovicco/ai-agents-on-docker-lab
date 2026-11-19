@@ -1,0 +1,1 @@
+{"charge_wh":3000,"slots":2,"hours":[{"hour":9,"pv_wh":1600,"home_wh":1300},{"hour":10,"pv_wh":3900,"home_wh":1500},{"hour":11,"pv_wh":4800,"home_wh":1800},{"hour":12,"pv_wh":3600,"home_wh":1700}]}

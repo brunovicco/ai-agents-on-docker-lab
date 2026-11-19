@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "ai_systems": [
+    {
+      "id": "solar-dispatch",
+      "data": "synthetic forecast",
+      "owner": "project-owner"
+    }
+  ]
+}

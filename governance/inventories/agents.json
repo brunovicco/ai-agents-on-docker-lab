@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "agents": [
+    {
+      "id": "planner",
+      "mode": "deterministic"
+    },
+    {
+      "id": "codex",
+      "mode": "optional",
+      "authority": "propose only"
+    }
+  ]
+}

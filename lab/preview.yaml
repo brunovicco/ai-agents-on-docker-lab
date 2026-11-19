@@ -1,0 +1,5 @@
+schemaVersion: "1"
+name: solar-dispatch-preview
+ports:
+  - sandbox: 8000
+    host: 8765

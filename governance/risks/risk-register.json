@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "risks": [
+    {
+      "id": "invalid-schedule",
+      "owner": "project-owner",
+      "severity": "medium",
+      "decision": "mitigate",
+      "mitigation": "Independent host verifier rejects infeasible and suboptimal schedules."
+    }
+  ]
+}
