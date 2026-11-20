@@ -17,5 +17,5 @@ else:
     raise SystemExit("FAIL: forecast opened for writing")
 print("PASS: writable desk, read-only forecast")
 '
-sbx policy deny network --sandbox solar-dispatch example.com
-sbx policy check network --sandbox solar-dispatch example.com
+# The kit denies all runtime egress, including hosts that the global policy allows.
+sbx policy check network --sandbox solar-dispatch github.com

@@ -7,6 +7,12 @@ build: |
   FROM scratch
   COPY --chmod=0755 solar-plan /usr/local/bin/solar-plan
 capabilities:
+  # The planner reads mounted files only. Deny all runtime egress; deny wins over any allow.
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      runtime:
+        deny:
+          - "**"
   - type: com.docker.sandbox/agent-context@1
     config:
       contentFile: ./context.md

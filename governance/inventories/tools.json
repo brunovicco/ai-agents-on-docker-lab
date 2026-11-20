@@ -6,6 +6,10 @@
       "access": "read"
     },
     {
+      "id": "decoy_ping",
+      "access": "read, lab-only canary"
+    },
+    {
       "id": "dispatch.verify",
       "access": "operator only"
     }
