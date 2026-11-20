@@ -14,6 +14,10 @@
       "purpose": "publishes the images and the sandbox kit with SBOM and provenance attestations"
     },
     {
+      "id": "sigstore",
+      "purpose": "keyless signing of published images and the kit: Fulcio issues the certificate and Rekor logs the signature publicly"
+    },
+    {
       "id": "docker-model-runner",
       "purpose": "serves the local ai/qwen3:4b model for the Docker Agent planner"
     },
