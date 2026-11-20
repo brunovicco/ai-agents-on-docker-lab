@@ -52,7 +52,7 @@ As duas imagens rodam sobre uma Docker Hardened Image, sem shell nem gerenciador
 | `python:3.13-slim` | 0 / 11 / 8 / 34 | 8 | Sim | D (39%) |
 | `dhi.io/python:3.13` | 0 / 2 / 11 / 4 | 0 | Não | A (94%) |
 
-A imagem da aplicação caiu de 218 MB para 133 MB. A cada push no `main`, o CI publica no GitHub Container Registry as imagens, com SBOM e proveniência, e o kit do sandbox, com a sua política de rede.
+A imagem da aplicação caiu de 218 MB para 133 MB. A cada push no `main`, o CI publica no GitHub Container Registry as imagens para amd64 e arm64, com SBOM e proveniência, e o kit do sandbox, com a sua política de rede.
 
 ## Explore outras etapas
 
