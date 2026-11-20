@@ -1,0 +1,25 @@
+# Keep pinned digests, actions, and locked Python dependencies current.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /integrations
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "docker"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"

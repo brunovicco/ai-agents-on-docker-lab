@@ -6,6 +6,14 @@
       "purpose": "isolated runtime"
     },
     {
+      "id": "docker-hardened-images",
+      "purpose": "runtime base image for the application and MCP images, pulled from dhi.io"
+    },
+    {
+      "id": "github-container-registry",
+      "purpose": "publishes the images and the sandbox kit with SBOM and provenance attestations"
+    },
+    {
       "id": "openai",
       "purpose": "optional Codex provider"
     }

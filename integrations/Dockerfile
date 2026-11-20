@@ -1,8 +1,14 @@
 # syntax=docker/dockerfile:1
 #
 # Package the read-only forecast and decoy MCP servers so sbx can launch them with Docker
-# isolation instead of as host processes. Build from the repository root:
+# isolation instead of as host processes. Build with uv on the Docker Official Python image
+# and run on a Docker Hardened Image, as the application image does. Build from the
+# repository root:
 #   docker build -f integrations/Dockerfile -t solar-forecast-mcp:dev .
+# Without dhi.io access, add:
+#   --build-arg RUNTIME_IMAGE=python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91
+
+ARG RUNTIME_IMAGE=dhi.io/python:3.13@sha256:ab678ca8fa69d36f1386fb71f4252d1a9561b7542ca84f5d14babffebcf4f479
 
 FROM python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91 AS builder
 
@@ -19,21 +25,19 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-dev --no-install-project --extra mcp
 
-FROM python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91
-
-RUN groupadd --system app && useradd --system --gid app --no-create-home app
+FROM ${RUNTIME_IMAGE}
 
 WORKDIR /app
 
-# Root owns everything the servers read; the app user cannot modify code or the fixture.
-COPY --from=builder /app/.venv /app/.venv
+# Root owns everything the servers read; the runtime user cannot modify code or the fixture.
+COPY --from=builder /app/.venv/lib/python3.13/site-packages /app/site-packages
 COPY integrations/forecast_mcp.py integrations/decoy_mcp.py /app/integrations/
 COPY lab/forecast/day.json /app/lab/forecast/day.json
 
-ENV PATH="/app/.venv/bin:$PATH" \
+ENV PYTHONPATH=/app/site-packages \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-USER app
+USER 65532
 
 ENTRYPOINT ["python", "integrations/forecast_mcp.py"]

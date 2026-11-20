@@ -130,9 +130,10 @@ For Codex sign-in, use `sbx secret set openai --oauth` or the `sbx secret set op
 
 ## 3. Kit, local preview, and supply chain
 
-The environment selects a v3 mixin with an executable and context for the agent. Build the mixin with the official Buildx frontend. The application Dockerfile pins its base images and build tools by digest.
+The environment selects a v3 mixin with an executable, an egress policy, and context for the agent. Build the mixin with the official Buildx frontend. Both Dockerfiles pin their base images and build tools by digest. They build with uv on the Docker Official Python image and run on a Docker Hardened Image, `dhi.io/python:3.13`, which has no shell or package manager and runs as user 65532. Pulling it requires `docker login dhi.io` with a Docker account. Without that access, add `--build-arg RUNTIME_IMAGE=python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91` to build on the official image instead.
 
 ```bash
+docker login dhi.io
 docker buildx build -f lab/solar-kit/solar-kit.yaml -t solar-kit:dev lab/solar-kit
 docker build -t solar-dispatch:dev .
 docker run --rm --read-only --network none solar-dispatch:dev
@@ -148,9 +149,22 @@ docker buildx build --builder solar-attest --sbom=true --provenance=mode=max --o
 docker buildx rm solar-attest
 ```
 
+### Published images and attestations
+
+On every push to `main`, CI publishes the application image, the MCP server image, and the sandbox kit to GitHub Container Registry. The images carry an SBOM and maximal provenance from Buildx. The kit keeps its v3 descriptor, including the deny-all egress policy, in the manifest annotations.
+
+```bash
+docker buildx imagetools inspect ghcr.io/brunovicco/solar-dispatch:main --format '{{json .SBOM}}'
+docker buildx imagetools inspect ghcr.io/brunovicco/solar-dispatch:main --format '{{json .Provenance}}'
+docker buildx imagetools inspect ghcr.io/brunovicco/solar-forecast-mcp:main
+docker buildx imagetools inspect ghcr.io/brunovicco/solar-kit:main --raw
+```
+
+Each build is also tagged `sha-<commit>`. To run the published kit instead of the local source, replace `source: ./solar-kit` in `lab/sbxenv.yaml` with `ghcr.io/brunovicco/solar-kit` pinned by digest. `sbx` accepts remote kits only from sources listed in `kit.allowedSources`, so add `ghcr.io/brunovicco/` there first.
+
 ### Docker Hardened Images
 
-The application uses Docker Official Images. To try a separate MCP server packaged as a Docker Hardened Image, authenticate to `dhi.io` and verify manifest access before registering it. The registry uses its own login.
+Both lab images already run on a Docker Hardened Image. To try a third-party MCP server packaged as a Docker Hardened Image, authenticate to `dhi.io` and verify manifest access before registering it. The registry uses its own login. On macOS with Docker Desktop, `docker pull dhi.io/python:3.13` worked after login while `docker buildx imagetools inspect` on the same image still returned HTTP 401, so check access with `docker pull` when `imagetools` fails.
 
 ```bash
 docker login dhi.io

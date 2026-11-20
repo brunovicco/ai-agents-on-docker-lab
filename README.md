@@ -43,13 +43,24 @@ flowchart TB
     Verify -->|"No"| Reject["Reject the proposal"]
 ```
 
+## Supply chain
+
+Both images run on a Docker Hardened Image without a shell or package manager, as an unprivileged user. Docker Scout compared the base images on 2026-11-20 for linux/arm64. It evaluated the published tags, not the pinned digests. See the [evidence](docs/evidence/2026-11-20-p1b-supply-chain.md).
+
+| Runtime base | Vulnerabilities (C/H/M/L) | Fixable critical or high | Root user | Scout health |
+| --- | --- | --- | --- | --- |
+| `python:3.13-slim` | 0 / 11 / 8 / 34 | 8 | Yes | D (39%) |
+| `dhi.io/python:3.13` | 0 / 2 / 11 / 4 | 0 | No | A (94%) |
+
+The application image shrank from 218 MB to 133 MB. On every push to `main`, CI publishes the images with an SBOM and provenance, and the sandbox kit with its egress policy, to GitHub Container Registry.
+
 ## Extend the experiment
 
 | Experiment | What to look for |
 | --- | --- |
 | [Filesystem and network policy](docs/SANDBOX-LAB.md#1-local-isolation-and-network-policy) | Confirm the workspace is writable and the forecast is read-only. Show that the kit's deny-all egress policy blocks a host the global policy allows, and match the block to its log entry. |
 | [Codex through MCP](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) | Give Codex a fixed MCP tool catalog, verify its proposal on the host, test whether it can reach a server it was not given, and contrast it with a dynamic gateway. |
-| [Buildx and supply chain](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) | Build the sandbox kit and application image, serve the forecast on loopback, and export an OCI archive with SBOM and provenance. |
+| [Buildx and supply chain](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) | Build the images on a Docker Hardened Image runtime, serve the forecast on loopback, and inspect the SBOM and provenance that CI publishes with the images and the kit. |
 | [Docker Cloud](docs/SANDBOX-LAB.md#4-cloud-execution-and-transfer) | Run the planner in a short-lived cloud sandbox and verify the result on the host. |
 
 [Dispatch model](docs/DISPATCH.md) · [Architecture](docs/ARCHITECTURE.md) · [Governance](governance/README.md) · [Development and local smoke tests](docs/DEVELOPMENT.md)

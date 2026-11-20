@@ -46,16 +46,29 @@ exit with status 1 because a lower-cost schedule is available. See the
 ## Container
 
 ```bash
+docker login dhi.io
 docker build -t solar-dispatch-lab .
 docker run --rm --read-only --network none solar-dispatch-lab
 ```
 
-The Dockerfile uses uv to install locked dependencies into a virtual environment. The slim
-runtime runs the dispatch CLI as a non-root user. With its default arguments it emits a
-proposal for the bundled forecast. The `container` CI job builds the image, runs it without network
-on a read-only filesystem, verifies its proposal on the runner, checks the non-root user, and
-confirms that a suboptimal proposal is rejected inside the container. See the [sandbox walkthrough](SANDBOX-LAB.md) for the kit
-build and the OCI export with attestations.
+The Dockerfile uses uv on the Docker Official Python image to install the locked dependencies and
+the project, not as an editable link, into `site-packages`. The runtime stage copies only those
+packages and the bundled forecast onto `dhi.io/python:3.13`, a Docker Hardened Image without a
+shell or package manager, and runs the dispatch CLI as user 65532. With its default arguments it
+emits a proposal for the bundled forecast. Without `dhi.io` access, add
+`--build-arg RUNTIME_IMAGE=python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91`.
+
+The `container` CI job builds the application and MCP images, runs the application without network
+on a read-only filesystem, verifies its proposal on the runner, checks the runtime user, confirms
+that a suboptimal proposal is rejected inside the container, and runs the MCP checks inside the
+MCP image. It uses the hardened runtime when the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
+repository secrets hold a Docker username and a read-only personal access token. Otherwise it falls
+back to the official image with a warning. The `publish` job runs on pushes to `main`, requires
+those secrets, and publishes the images and the kit to GitHub Container Registry with SBOM and
+provenance attestations. See the [sandbox walkthrough](SANDBOX-LAB.md#published-images-and-attestations)
+to inspect them.
+
+Dependabot proposes weekly updates for the pinned base images, GitHub Actions, and `uv.lock`.
 
 ## Harness provenance
 
