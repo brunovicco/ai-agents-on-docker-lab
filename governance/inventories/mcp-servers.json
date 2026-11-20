@@ -3,8 +3,13 @@
   "mcp_servers": [
     {
       "id": "solar-forecast",
-      "transport": "stdio",
+      "transport": "stdio in a container without network on a read-only filesystem",
       "scope": "read-only synthetic fixture"
+    },
+    {
+      "id": "solar-decoy",
+      "transport": "stdio in a container without network on a read-only filesystem",
+      "scope": "lab-only canary for testing static MCP isolation; never load it into a sandbox"
     }
   ]
 }
