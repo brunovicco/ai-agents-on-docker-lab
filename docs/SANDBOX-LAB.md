@@ -13,7 +13,7 @@ sbx ls
 sbx inspect solar-dispatch
 ```
 
-The `shell` agent is itself a v3 workload kit, `docker.io/sbx/shell`, built on a Docker Hardened Image (`dhi/shell`, Debian 13). The lab's kit installs `solar-plan`. The Shell sandbox runs it against the read-only forecast at `/forecast/day.json` and sends a proposal to the host verifier. The workspace is writable. The source at `/lab-src` is read-only.
+The `shell` agent is itself a v3 workload kit, `docker.io/sbx/shell`, built on a Docker Hardened Image (`dhi/shell`, Debian 13). The lab's kit installs `solar-plan` together with its own copy of the planner, taken from the published application image pinned by digest. The Shell sandbox runs it against the read-only forecast at `/forecast/day.json` and sends a proposal to the host verifier. The workspace is writable, and neither the repository nor the verifier is in the sandbox.
 
 The kit also declares the planner's network policy: it denies all runtime egress. The policy lives in `lab/solar-kit/solar-kit.yaml`, next to the tool it constrains, so it is versioned and reviewed with the code. Test it against `github.com`, a host that the `balanced` global policy allows.
 
@@ -148,6 +148,26 @@ docker buildx create --name solar-attest --driver docker-container
 docker buildx build --builder solar-attest --sbom=true --provenance=mode=max --output type=oci,dest=solar.oci.tar .
 docker buildx rm solar-attest
 ```
+
+### A self-contained kit
+
+The mixin does not reach into the repository. Its build copies the planner modules from the published application image, pinned by digest, and lands them in `/opt/solar-dispatch` next to `solar-plan`. The sandbox therefore mounts only the forecast and the workspace, and `bash lab/probe.sh` fails if the repository source is visible inside it.
+
+The planner still needs an interpreter, and the kit says so. `requires: ["deb/python-3.14"]` names the Debian package that the pinned `sbx/shell` 1.1.0 workload lists in its published `provides`, so a workload without it fails at resolution rather than on the first run. The kit also declares `provides: ["io.github.brunovicco/solar-plan"]` under a namespace of its own and a `version`. The reference resolver in `docker/sandbox-kit-spec` accepted the pair and rejected the same kit on a workload with the Python entries removed: `./solar-kit requires "deb/python-3.14" but nothing in the set provides it`.
+
+CI repeats the composition without `sbx`. It checks that each `requires` entry appears in the workload's published descriptor, lays the kit over the pinned workload image, runs `solar-plan` with no network on a read-only filesystem, and verifies the proposal on the host. To do the same locally:
+
+```bash
+docker buildx build -f lab/solar-kit/solar-kit.yaml --load -t solar-kit:dev lab/solar-kit
+printf 'FROM %s\nCOPY --from=solar-kit:dev / /\n' \
+  "$(sed -n 's/^  - \(docker\.io\/sbx\/shell:[^ ]*\)$/\1/p' lab/sbxenv.yaml)" |
+  docker build -t solar-shell-kit:dev -
+docker run --rm --read-only --network none --entrypoint solar-plan \
+  -v "$PWD/lab/forecast:/forecast:ro" solar-shell-kit:dev |
+  PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
+```
+
+When the planner changes, publish it, then move the `FROM ghcr.io/brunovicco/solar-dispatch` pin in the kit to the new `sha-<commit>` digest.
 
 ### Published images and attestations
 

@@ -65,8 +65,31 @@ jobs:
           uv run --no-project --with jsonschema==4.26.0 --with pyyaml==6.0.3 \
             python scripts/validate_agent.py "$RUNNER_TEMP/agent-schema.json"
 
-      - name: Build sandbox mixin
-        run: docker buildx build -f lab/solar-kit/solar-kit.yaml lab/solar-kit
+      - name: Compose the kit onto the pinned Shell workload and verify its proposal
+        run: |
+          set -o pipefail
+          workload=$(sed -n 's/^  - \(docker\.io\/sbx\/shell:[^ ]*\)$/\1/p' lab/sbxenv.yaml)
+          test -n "$workload"
+          # The kit's requires must name capabilities the pinned workload publishes.
+          docker buildx imagetools inspect --raw "$workload" |
+            uv run --no-project --with pyyaml==6.0.3 python -c '
+          import json, sys, yaml
+          index = json.load(sys.stdin)
+          provides = json.loads(index["annotations"]["vnd.docker.sandbox.kit.descriptor"])["provides"]
+          names = {entry.split("@", 1)[0] for entry in provides}
+          kit = yaml.safe_load(open("lab/solar-kit/solar-kit.yaml"))
+          missing = [need for need in kit.get("requires", []) if need.split()[0] not in names]
+          sys.exit(f"The workload does not provide {missing}" if missing else None)
+          '
+          docker buildx build -f lab/solar-kit/solar-kit.yaml --load -t solar-kit:ci lab/solar-kit
+          printf 'FROM %s\nCOPY --from=solar-kit:ci / /\n' "$workload" | docker build -t solar-shell-kit:ci -
+          docker run --rm --read-only --network none --entrypoint solar-plan \
+            -v "$PWD/lab/forecast:/forecast:ro" solar-shell-kit:ci |
+            PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
+          # The planner ships in the kit; the repository source is not in the sandbox.
+          if docker run --rm --entrypoint test solar-shell-kit:ci -e /lab-src; then
+            exit 1
+          fi
 
   container:
     runs-on: ubuntu-latest

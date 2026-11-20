@@ -1,3 +1,3 @@
 #!/bin/sh
 set -eu
-PYTHONPATH=/lab-src exec python3 -B -m solar_dispatch.entrypoints.dispatch plan /forecast/day.json
+PYTHONPATH=/opt/solar-dispatch exec python3 -B -m solar_dispatch.entrypoints.dispatch plan /forecast/day.json
