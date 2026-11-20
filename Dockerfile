@@ -3,8 +3,8 @@
 # Build with uv on the Docker Official Python image; run on a Docker Hardened Image.
 # The hardened runtime has no shell or package manager, so the build installs the locked
 # dependencies and the project into site-packages that the runtime interpreter loads
-# through PYTHONPATH. Without dhi.io access, build with:
-#   --build-arg RUNTIME_IMAGE=python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91
+# through PYTHONPATH. Without dhi.io access, reuse the builder image as the runtime:
+#   --build-arg RUNTIME_IMAGE=<the python:3.13-slim reference in the builder FROM line>
 
 ARG RUNTIME_IMAGE=dhi.io/python:3.13@sha256:ab678ca8fa69d36f1386fb71f4252d1a9561b7542ca84f5d14babffebcf4f479
 
