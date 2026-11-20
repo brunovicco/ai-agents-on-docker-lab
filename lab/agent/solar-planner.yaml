@@ -1,0 +1,39 @@
+#!/usr/bin/env docker agent run
+# Plan EV charging with a local model served by Docker Model Runner.
+# The agent's only tool is the read-only forecast MCP server. lab/agent.sh runs it in a
+# hardened container that publishes streamable HTTP on loopback only. The agent answers with a
+# JSON object as text. The host checks the transcript for the tool call, then verifies the
+# answer against its own copy of the forecast.
+
+models:
+  local:
+    provider: dmr
+    model: ai/qwen3:4b
+    temperature: 0
+    provider_opts:
+      # The task uses about 2,200 tokens. A small engine context keeps the KV cache, and the
+      # memory it takes on a laptop, small.
+      context_size: 4096
+
+agents:
+  root:
+    model: local
+    description: Plans EV charging hours from a synthetic solar forecast
+    instruction: |
+      You do not know the forecast values. Before you answer, call the forecast_day tool once
+      and use only the numbers it returns. The host rejects any answer given without that call.
+      Each listed hour can charge the simulated vehicle with charge_wh watt-hours. Choose slots
+      distinct hours. For each hour, the solar surplus is max(0, pv_wh - home_wh) and the grid
+      energy is max(0, charge_wh - surplus). Minimize the total grid energy. Reply with only a
+      JSON object of the form {"hours": [hour, ...]}, one entry per selected hour, and no
+      other text.
+    toolsets:
+      # A stdio server started per session with docker run took about 44 seconds to become
+      # ready under Docker Agent v1.163.0 on Docker Desktop, past the 30-second turn budget, so
+      # the model ran without the tool. A running container answers in about a second.
+      - type: mcp
+        # Loopback is a private address, which Docker Agent refuses unless allowed.
+        allow_private_ips: true
+        remote:
+          url: http://127.0.0.1:8822/mcp
+          transport_type: streamable

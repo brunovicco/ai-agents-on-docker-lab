@@ -37,7 +37,9 @@ flowchart TB
     Forecast -->|"Montagem somente leitura (Shell)"| Planner
     Forecast --> MCP["Ferramenta forecast_day de somente leitura em container no host"]
     MCP -->|"Gateway MCP (Codex)"| Planner
+    MCP -->|"MCP via stdio"| Local["Agente com modelo local (Docker Agent + Model Runner)"]
     Planner -->|"Horários propostos em JSON"| Verify{"Proposta válida e ótima? (verificador no host)"}
+    Local -->|"Horários em JSON, após o gate de evidência"| Verify
     Forecast -->|"Dados originais"| Verify
     Verify -->|"Sim"| Accept["Aceita e informa o consumo da rede"]
     Verify -->|"Não"| Reject["Rejeita a proposta"]
@@ -62,6 +64,7 @@ A imagem da aplicação caiu de 218 MB para 133 MB. A cada push no `main`, o CI 
 | [Codex via MCP](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) | Dê ao Codex um catálogo MCP estático, valide a proposta no host, teste se ele alcança um servidor que não recebeu e compare com um gateway dinâmico. |
 | [Buildx e cadeia de suprimentos](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) | Compile as imagens sobre um runtime Docker Hardened Image, sirva a previsão em loopback e inspecione o SBOM e a proveniência que o CI publica com as imagens e o kit. |
 | [Docker Cloud](docs/SANDBOX-LAB.md#4-cloud-execution-and-transfer) | Execute o planejador em um sandbox temporário na nuvem e valide o resultado no host. |
+| [Modelo local via Docker Agent](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) | Planeje com um modelo servido pelo Docker Model Runner, sem chave de API, usando só a ferramenta de previsão somente leitura, e valide a proposta no host. |
 
 A documentação técnica está em inglês.
 

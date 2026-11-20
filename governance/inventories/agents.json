@@ -9,6 +9,11 @@
       "id": "codex",
       "mode": "optional",
       "authority": "propose only"
+    },
+    {
+      "id": "local-model-planner",
+      "mode": "optional",
+      "authority": "propose only; read-only forecast tool; host verifier decides"
     }
   ]
 }

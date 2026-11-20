@@ -56,6 +56,15 @@ jobs:
           uv run --no-project --with jsonschema==4.26.0 --with pyyaml==6.0.3 \
             python scripts/validate_kit.py "$RUNNER_TEMP/sandbox-kit-spec"
 
+      - name: Validate the Docker Agent planner against the official schema
+        env:
+          AGENT_SCHEMA_COMMIT: 286653cdb996035b1b160d98010ca039cebb29dc
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/agent-schema.json" \
+            "https://raw.githubusercontent.com/docker/docker-agent/$AGENT_SCHEMA_COMMIT/agent-schema.json"
+          uv run --no-project --with jsonschema==4.26.0 --with pyyaml==6.0.3 \
+            python scripts/validate_agent.py "$RUNNER_TEMP/agent-schema.json"
+
       - name: Build sandbox mixin
         run: docker buildx build -f lab/solar-kit/solar-kit.yaml lab/solar-kit
 
@@ -119,6 +128,24 @@ jobs:
 
       - name: Check the MCP servers inside the container over stdio
         run: uv run --frozen --extra mcp python integrations/check_mcp.py --image solar-forecast-mcp:ci
+
+      - name: Check the forecast server over streamable HTTP on loopback
+        run: |
+          docker run -d --rm --name solar-forecast-mcp-http -p 127.0.0.1:8822:8000 --read-only \
+            --cap-drop ALL --security-opt no-new-privileges solar-forecast-mcp:ci \
+            --transport streamable-http --host 0.0.0.0 --port 8000
+          trap 'docker rm -f solar-forecast-mcp-http >/dev/null 2>&1 || true' EXIT
+          for _ in $(seq 1 40); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8822/mcp || true)" != "000" ] && break
+            sleep 0.25
+          done
+          uv run --frozen --extra mcp python integrations/check_mcp.py --url http://127.0.0.1:8822/mcp
+          # A well-formed MCP request with a non-loopback Host must be refused (DNS rebinding).
+          status=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8822/mcp \
+            -H 'Host: evil.example' -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"ping"}')
+          test "$status" = "421"
 
       - name: Set up QEMU for arm64
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0

@@ -1,8 +1,14 @@
-"""Read-only synthetic forecast exposed through the official MCP SDK."""
+"""Read-only synthetic forecast exposed through the official MCP SDK.
 
+The server speaks stdio by default. With --transport streamable-http it serves HTTP for clients
+that should connect to an already running container instead of starting one per session.
+"""
+
+import argparse
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -39,5 +45,25 @@ def forecast_day() -> DayForecast:
     return DayForecast.model_validate_json(FORECAST.read_text())
 
 
+def main() -> None:
+    """Serve over stdio, or over streamable HTTP for loopback clients."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--transport", choices=["stdio", "streamable-http"], default="stdio")
+    parser.add_argument("--host", default="127.0.0.1", help="HTTP bind address")
+    parser.add_argument("--port", type=int, default=8000, help="HTTP port")
+    args = parser.parse_args()
+    if args.transport == "streamable-http":
+        server.settings.host = args.host
+        server.settings.port = args.port
+        # The container publishes the port on loopback only; reject other Host headers so a
+        # page in a browser cannot reach the server through DNS rebinding.
+        server.settings.transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=["127.0.0.1:*", "localhost:*"],
+            allowed_origins=["http://127.0.0.1:*", "http://localhost:*"],
+        )
+    server.run(transport=args.transport)
+
+
 if __name__ == "__main__":
-    server.run(transport="stdio")
+    main()

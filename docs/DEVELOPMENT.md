@@ -21,7 +21,8 @@ Use the quality gate to check lint, formatting, architecture, typing, pytest, go
 dependency security. The MCP check starts the forecast and decoy servers over stdio, checks the
 read-only annotations and output schema of `forecast_day`, and calls both tools. Add
 `--image solar-forecast-mcp:dev` to run the same checks against the container built from
-`integrations/Dockerfile`.
+`integrations/Dockerfile`, or `--url http://127.0.0.1:8822/mcp` to check a server started with
+`--transport streamable-http`.
 
 For focused observability tests:
 

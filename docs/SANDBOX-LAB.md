@@ -193,7 +193,45 @@ sbx --cloud rm solar-cloud
 
 To inspect the declarative variant, run `sbx --cloud env plan lab/cloud.yaml`. Docker Cloud has separate storage for secrets, policies, and volumes. After a move, verify the destination policy and check a file saved in the image filesystem. Host mounts require explicit transfer. Files in memory-backed mounts such as `/tmp` in the cloud Shell sandbox stay behind. Published cloud ports receive external URLs. [Local and cloud differences](https://docs.docker.com/ai/sandboxes/cloud/local-vs-cloud/)
 
-## 5. Further experiments
+## 5. Local model through Docker Agent
+
+Docker Model Runner serves a model on the host, and Docker Agent defines the planner in `lab/agent/solar-planner.yaml`. No API key is involved. The lab was run with Docker Agent v1.163.0, and the script requires v1.147.0 or later and Model Runner enabled. It checks both before it runs. The plugin bundled with an older Docker Desktop can lag behind: with v1.128.0 it rejected the flags the lab needed. Install the current release with `brew install docker-agent` and link it as the CLI plugin with `ln -sf "$(brew --prefix)/bin/docker-agent" ~/.docker/cli-plugins/docker-agent`. The agent uses the MCP server image from section 2.
+
+```bash
+docker agent version
+docker desktop enable model-runner
+docker model pull ai/qwen3:4b
+docker build -f integrations/Dockerfile -t solar-forecast-mcp:dev .
+bash lab/agent.sh
+```
+
+The agent's only tool is `forecast_day`. `lab/agent.sh` starts the MCP server image from section 2 as a running container that serves streamable HTTP on `127.0.0.1:8822` only, with a read-only filesystem, no capabilities, and an unprivileged user. The server rejects requests whose `Host` header is not loopback, which blocks DNS rebinding from a browser. Publishing a port rules out `--network none`, so this container keeps the default bridge network; it holds no credentials and reads only its bundled fixture. The agent connects with `allow_private_ips: true`, because Docker Agent refuses loopback and private addresses by default. The script removes the container when it exits. `lab/agent.sh` then runs the agent once with `--safety restricted`, which runs tools annotated as read-only and denies every other tool call. The agent answers with a JSON object as text, and the host verifier enforces its exact format.
+
+### Check the process, not only the result
+
+With v1.163.0 and `ai/qwen3:4b`, the first accepted run was accepted for the wrong reason. The tool was missing, and the model guessed.
+
+`docker agent debug toolsets lab/agent/solar-planner.yaml` lists the tools an agent receives without calling the model, and its `--debug --log-file` output explained why. The configuration then started the server per session with `docker run` over stdio. Under Docker Agent, that server took about 44 seconds to become ready, while Docker Agent waits 30 seconds per turn and then continues without the toolset (`Toolset start still running; skipping for this turn`). The same `docker run` handshake took under 2 seconds from the Python MCP client, and the same server without Docker took under a second from Docker Agent. The model therefore never had the tool. The running HTTP container removes the per-session start.
+
+That first run was accepted with hours 10 and 11. Its transcript showed one tool call, to the internal `__structured_output__` tool, and none to `forecast_day`: the model never read the forecast, and its plausible guess happened to be optimal. A second run without the tool call proposed `{"hours": [12, 13, 14]}`, which the verifier would reject. The verifier judges the answer, so it cannot tell a lucky guess from a computed one.
+
+`lab/agent.sh` therefore keeps the agent's newline-delimited JSON transcript and passes it through an evidence gate on the host, `solar_dispatch.entrypoints.agent_evidence`, before the verifier. The gate takes the final answer, either the last structured output or the text written after the last tool result, accepts it only when a `forecast_day` call precedes it, and then hands it to the verifier. A guess is rejected with `The agent answered without reading the forecast through forecast_day`, and the script prints the transcript path. Set `SOLAR_AGENT_TRANSCRIPT` to keep the transcript at a chosen path. Run the gate on a saved transcript to check a past run.
+
+```bash
+PYTHONPATH=src python3 -m solar_dispatch.entrypoints.agent_evidence < /tmp/solar-agent.ndjson
+```
+
+### Structured output and reasoning with a local model
+
+The first configuration returned the answer through Docker Agent's structured output in tool mode. Once the tool was available, `ai/qwen3:4b` called `forecast_day` and then answered in plain text instead of calling the output tool. Docker Agent retried with a reminder, and Model Runner's llama.cpp rejected the following request with `HTTP 400: Cannot have 2 or more assistant messages at the end of the list`. The planner therefore asks for a plain JSON answer, which the gate reads from the transcript.
+
+Qwen3 reasons before it answers. Neither `thinking_budget: none` nor Qwen3's `/no_think` switch, in the instruction or in the user message, turned reasoning off through Model Runner. On a fanless MacBook Air with the Metal build of llama.cpp, the two accepted runs produced about 1,300 output tokens each and took 4.5 and 6 minutes, at roughly 4 to 5 tokens per second. During the runs the Mac showed `kernel_task` above 100% CPU, which is how macOS throttles a hot chip, and became unresponsive. Run the lab on power, with other work closed. `provider_opts.context_size: 4096` keeps the engine's memory small, since the task uses about 2,200 tokens of context.
+
+The agent instruction now states that the model does not know the forecast and that the host rejects answers without the tool call. A small local model can still skip the tool or miscalculate. Either way the host rejects the proposal, which is the point of the lab.
+
+CI validates `lab/agent/solar-planner.yaml` against the official Docker Agent JSON schema, pinned to a commit. Running the model needs Model Runner, so CI does not run the agent.
+
+## 6. Further experiments
 
 | Area | Experiment or inspection | What to observe |
 | --- | --- | --- |
@@ -204,6 +242,7 @@ To inspect the declarative variant, run `sbx --cloud env plan lab/cloud.yaml`. D
 | Hardware and other agents | Inspect resources inside the microVM and use `sbx run --help` for workload options | Check CPU and memory inside the guest, connect to the Wayland socket for display, and look for `/dev/kvm` before testing nested virtualization |
 | Volumes, templates, and migration | Run `sbx --cloud volume ls`, `sbx template ls`, and `sbx move --help` | Compare persistent storage, explicit transfer, and image snapshots |
 | Scheduling | Run `sbx --cloud schedule create shell --name solar-clock --cron '0 8 * * *' --timezone America/Sao_Paulo --enabled=false --command 'date -u'` | List the paused schedule with `sbx --cloud schedule ls` and remove it by ID. To schedule the forecast, provide the code and data in a cloud kit |
+| Docker Agent in a sandbox | Run `docker agent run --sandbox --exec --safety restricted lab/agent/solar-planner.yaml "Plan the charging hours for the forecast."` | The agent process moves into a Docker Sandboxes microVM. Check how it reaches Model Runner and the MCP server from the VM |
 | Operations and diagnostics | Run `sbx df`, `sbx tui`, and `sbx diagnose --help` | Inspect state, disk usage, and diagnostics |
 | Organization governance | In a pilot organization with AI Governance active and a license assigned to the test account, run `sbx policy refresh` and `sbx policy ls` | Look for `Governance: Managed by <org>`. Test an allowed and a blocked destination, confirm the rule source, and compare the results with the organization audit log. [Docker governance verification](https://docs.docker.com/ai/governance/organization/get-started/#step-8-verify-on-a-developer-machine) |
 | APIs, SDKs, editors, and integrations | [Docker Sandboxes documentation](https://docs.docker.com/ai/sandboxes/) | Check availability for your backend and product |

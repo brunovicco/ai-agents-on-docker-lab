@@ -37,7 +37,9 @@ flowchart TB
     Forecast -->|"Read-only mount (Shell)"| Planner
     Forecast --> MCP["Read-only forecast_day tool in a container on the host"]
     MCP -->|"MCP gateway (Codex)"| Planner
+    MCP -->|"MCP over stdio"| Local["Local model agent (Docker Agent + Model Runner)"]
     Planner -->|"Proposed hours as JSON"| Verify{"Valid and optimal? (host verifier)"}
+    Local -->|"Hours as JSON, after the evidence gate"| Verify
     Forecast -->|"Original data"| Verify
     Verify -->|"Yes"| Accept["Accept and report grid energy"]
     Verify -->|"No"| Reject["Reject the proposal"]
@@ -62,5 +64,6 @@ The application image shrank from 218 MB to 133 MB. On every push to `main`, CI 
 | [Codex through MCP](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) | Give Codex a fixed MCP tool catalog, verify its proposal on the host, test whether it can reach a server it was not given, and contrast it with a dynamic gateway. |
 | [Buildx and supply chain](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) | Build the images on a Docker Hardened Image runtime, serve the forecast on loopback, and inspect the SBOM and provenance that CI publishes with the images and the kit. |
 | [Docker Cloud](docs/SANDBOX-LAB.md#4-cloud-execution-and-transfer) | Run the planner in a short-lived cloud sandbox and verify the result on the host. |
+| [Local model through Docker Agent](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) | Plan with a model served by Docker Model Runner, no API key, using only the read-only forecast tool, and verify the proposal on the host. |
 
 [Dispatch model](docs/DISPATCH.md) · [Architecture](docs/ARCHITECTURE.md) · [Governance](governance/README.md) · [Development and local smoke tests](docs/DEVELOPMENT.md)
