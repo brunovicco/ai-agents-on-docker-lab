@@ -45,6 +45,17 @@ jobs:
       - name: Verify MCP tool over stdio
         run: uv run --frozen --extra mcp python integrations/check_mcp.py
 
+      - name: Validate sandbox kit against the official v3 schema
+        env:
+          KIT_SPEC_COMMIT: d841decb96d9d676a3813ad46cd05583591cdcb3
+        run: |
+          git init --quiet "$RUNNER_TEMP/sandbox-kit-spec"
+          git -C "$RUNNER_TEMP/sandbox-kit-spec" fetch --quiet --depth 1 \
+            https://github.com/docker/sandbox-kit-spec "$KIT_SPEC_COMMIT"
+          git -C "$RUNNER_TEMP/sandbox-kit-spec" checkout --quiet FETCH_HEAD
+          uv run --no-project --with jsonschema==4.26.0 --with pyyaml==6.0.3 \
+            python scripts/validate_kit.py "$RUNNER_TEMP/sandbox-kit-spec"
+
       - name: Build sandbox mixin
         run: docker buildx build -f lab/solar-kit/solar-kit.yaml lab/solar-kit
 
@@ -55,6 +66,15 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.28"
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install
 
       - name: Build application image
         run: docker build -t solar-dispatch:ci .
@@ -74,3 +94,9 @@ jobs:
             docker run --rm -i --read-only --network none solar-dispatch:ci verify lab/forecast/day.json; then
             exit 1
           fi
+
+      - name: Build MCP server image
+        run: docker build -f integrations/Dockerfile -t solar-forecast-mcp:ci .
+
+      - name: Check the MCP servers inside the container over stdio
+        run: uv run --frozen --extra mcp python integrations/check_mcp.py --image solar-forecast-mcp:ci

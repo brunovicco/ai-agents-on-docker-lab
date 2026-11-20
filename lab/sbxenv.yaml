@@ -16,4 +16,6 @@ sandboxOptions:
   cpus: 2
   memory: 4g
 kits:
+  # Pin the agent workload by digest; sbx otherwise resolves docker.io/sbx/shell:latest.
+  - docker.io/sbx/shell:1.1.0@sha256:599c58a05c848c457512dd264d6d1a1e6a189db406686bbfde2999f916c82361
   - source: ./solar-kit

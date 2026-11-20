@@ -35,7 +35,7 @@ flowchart TB
         Planner["Shell planner or Codex agent"]
     end
     Forecast -->|"Read-only mount (Shell)"| Planner
-    Forecast --> MCP["Read-only forecast_day tool on the host"]
+    Forecast --> MCP["Read-only forecast_day tool in a container on the host"]
     MCP -->|"MCP gateway (Codex)"| Planner
     Planner -->|"Proposed hours as JSON"| Verify{"Valid and optimal? (host verifier)"}
     Forecast -->|"Original data"| Verify
@@ -47,8 +47,8 @@ flowchart TB
 
 | Experiment | What to look for |
 | --- | --- |
-| [Filesystem and network policy](docs/SANDBOX-LAB.md#1-local-isolation-and-network-policy) | Confirm the workspace is writable and the forecast is read-only. Match a blocked request to its policy log entry. |
-| [Codex through MCP](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) | Give Codex a fixed MCP tool catalog, verify its proposal on the host, and contrast it with a dynamic gateway. |
+| [Filesystem and network policy](docs/SANDBOX-LAB.md#1-local-isolation-and-network-policy) | Confirm the workspace is writable and the forecast is read-only. Show that the kit's deny-all egress policy blocks a host the global policy allows, and match the block to its log entry. |
+| [Codex through MCP](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) | Give Codex a fixed MCP tool catalog, verify its proposal on the host, test whether it can reach a server it was not given, and contrast it with a dynamic gateway. |
 | [Buildx and supply chain](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) | Build the sandbox kit and application image, serve the forecast on loopback, and export an OCI archive with SBOM and provenance. |
 | [Docker Cloud](docs/SANDBOX-LAB.md#4-cloud-execution-and-transfer) | Run the planner in a short-lived cloud sandbox and verify the result on the host. |
 

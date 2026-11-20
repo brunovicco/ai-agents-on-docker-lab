@@ -1,3 +1,24 @@
 schemaVersion: "1"
 name: solar-dispatch-codex
 agent: codex
+# Same workspace and server as the static session, so only the MCP mode differs.
+workspace: ./desk
+kits:
+  # Pin the agent workload by digest; sbx otherwise resolves docker.io/sbx/codex:latest.
+  - docker.io/sbx/codex:0.171.0@sha256:dacccb02ee6974591e52b6440064713a47e160516074bc00db5537547cb77212
+mcp:
+  servers:
+    - name: solar-forecast
+      command: docker
+      args:
+        - run
+        - -i
+        - --rm
+        - --network
+        - none
+        - --read-only
+        - --cap-drop
+        - ALL
+        - --security-opt
+        - no-new-privileges
+        - solar-forecast-mcp:dev

@@ -64,7 +64,7 @@ flowchart LR
         Planner["Deterministic planner or Codex agent"]
     end
     subgraph Host["Operator's host"]
-        MCP["Read-only forecast MCP server"]
+        MCP["Read-only forecast MCP server in a container"]
         Verify["Independent verifier"]
     end
     Forecast -->|"Read-only mount (Shell)"| Planner
@@ -75,5 +75,6 @@ flowchart LR
 ```
 
 The domain module owns parsing, ranking, and verification. The dispatch entrypoint translates
-between JSON and the domain. The standalone MCP server exposes the synthetic fixture to the
-Codex workflow through the Docker Sandboxes gateway.
+between JSON and the domain. The MCP server runs in its own container without network, on a read-only filesystem, and
+exposes the synthetic fixture to the Codex workflow through the Docker Sandboxes gateway. The
+planner's kit denies all runtime egress.

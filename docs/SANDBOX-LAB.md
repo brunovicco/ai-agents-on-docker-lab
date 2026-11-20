@@ -13,20 +13,27 @@ sbx ls
 sbx inspect solar-dispatch
 ```
 
-The kit installs `solar-plan`. The Shell sandbox runs it against the read-only forecast at `/forecast/day.json` and sends a proposal to the host verifier. The workspace is writable. The source at `/lab-src` is read-only.
+The `shell` agent is itself a v3 workload kit, `docker.io/sbx/shell`, built on a Docker Hardened Image (`dhi/shell`, Debian 13). The lab's kit installs `solar-plan`. The Shell sandbox runs it against the read-only forecast at `/forecast/day.json` and sends a proposal to the host verifier. The workspace is writable. The source at `/lab-src` is read-only.
 
-To demonstrate enforcement, establish a baseline with an allow rule scoped to this sandbox, then replace it with a deny rule.
+The kit also declares the planner's network policy: it denies all runtime egress. The policy lives in `lab/solar-kit/solar-kit.yaml`, next to the tool it constrains, so it is versioned and reviewed with the code. Test it against `github.com`, a host that the `balanced` global policy allows.
 
 ```bash
-sbx policy allow network --sandbox solar-dispatch example.com
-sbx env exec lab/sbxenv.yaml -- curl --max-time 10 -fsS -o /dev/null https://example.com/
-sbx policy rm network --sandbox solar-dispatch --resource example.com
 bash lab/probe.sh
-sbx env exec lab/sbxenv.yaml -- curl --max-time 5 -fsS https://example.com/
+sbx env exec lab/sbxenv.yaml -- curl --max-time 5 -fsS -o /dev/null https://github.com/
 sbx policy log solar-dispatch
 ```
 
-The probe first verifies that the workspace is writable and the forecast cannot be opened for writing. It then adds a sandbox-scoped deny rule and queries the policy. The query exits with status 1 for the expected denial. Run the final request and log commands separately if your shell stops on errors. A blocked request should match the new deny rule in the log. DNS errors and timeouts alone are insufficient evidence of enforcement.
+The probe verifies that the workspace is writable and the forecast cannot be opened for writing. It then queries the policy for `github.com`. The query should exit with status 1 and name the kit's rule as the reason. The request from inside the sandbox should fail, and the log should show it blocked by the same rule. Run the request and log commands separately if your shell stops on errors. DNS errors and timeouts alone are insufficient evidence of enforcement.
+
+A deny in a kit wins over any allow. Add a sandbox-scoped allow and query again.
+
+```bash
+sbx policy allow network --sandbox solar-dispatch github.com
+sbx policy check network --sandbox solar-dispatch github.com
+sbx policy rm network --sandbox solar-dispatch --resource github.com
+```
+
+The query should still deny `github.com`. Remove the allow when you finish.
 
 When finished, use `sbx stop solar-dispatch` and `sbx env rm lab/sbxenv.yaml`. The host workspace remains available. Keep the sandbox and its SSH alias in place while the VS Code remote workspace is open.
 
@@ -38,18 +45,21 @@ Most readers cannot run a microVM, so keep a transcript of what the sandbox did.
 bash lab/record.sh
 ```
 
-After the section 2 experiments, add sandbox names to capture their MCP mode, for example `bash lab/record.sh solar-codex solar-dispatch-codex`. The transcript goes to `docs/evidence/<date>-local.md`, or to the path in `SOLAR_EVIDENCE`. Each run replaces that file. The probe adds the sandbox-scoped deny rule again. Review the transcript before committing it, because `sbx` output can include usernames and host paths. For a terminal recording, wrap the demo with `asciinema rec docs/evidence/demo.cast -c "bash lab/demo.sh sandbox"`.
+After the section 2 experiments, add sandbox names to capture their MCP mode, for example `bash lab/record.sh solar-codex solar-dispatch-codex`. The transcript goes to `docs/evidence/<date>-local.md`, or to the path in `SOLAR_EVIDENCE`. Each run replaces that file. Review the transcript before committing it, because `sbx` output can include usernames and host paths. For a terminal recording, wrap the demo with `asciinema rec docs/evidence/demo.cast -c "bash lab/demo.sh sandbox"`.
 
 ## 2. Codex, credentials, and MCP
 
-Register the forecast server from the repository root. The registration points to the synchronized Python environment and server code on the host, outside any sandbox workspace. Stdio servers run on the host with your privileges, so register only code you have reviewed.
+Build the forecast server image and check it over the MCP stdio transport. Then register it. `sbx` runs stdio servers on the host, outside sandbox isolation, so the registration launches the server through Docker without network, on a read-only filesystem, without capabilities, and as a non-root user. The image contains the server code and the synthetic fixture, and nothing else from the host.
 
 ```bash
 uv sync --frozen --all-groups --extra observability --extra mcp
-uv run --extra mcp python integrations/check_mcp.py
-sbx mcp add solar-forecast --command "$PWD/.venv/bin/python" --args integrations/forecast_mcp.py --dir "$PWD"
+docker build -f integrations/Dockerfile -t solar-forecast-mcp:dev .
+uv run --extra mcp python integrations/check_mcp.py --image solar-forecast-mcp:dev
+sbx mcp add solar-forecast --command docker --args "run,-i,--rm,--network,none,--read-only,--cap-drop,ALL,--security-opt,no-new-privileges,solar-forecast-mcp:dev"
 sbx mcp inspect solar-forecast
 ```
+
+`forecast_day` is annotated as read-only, idempotent, and closed-world, and it publishes an output schema for its structured result.
 
 ### Static MCP: a fixed tool catalog
 
@@ -78,20 +88,34 @@ sbx exec solar-codex cat /tmp/attack.json |
 
 The verifier exits with status 1 and reports `Duplicate JSON key`.
 
-### Contrast: dynamic MCP
+### Can a static sandbox reach servers it was not given?
 
-Create the Codex environment on top of the Shell environment and load the server into the running sandbox.
+Static mode removes the discovery tools, but the gateway still offers `mcp_exec` and `code_mode`. Test whether they can reach a server that is registered on the host but not loaded into the sandbox. The decoy server returns a fixed canary, `solar-decoy-canary-3f9c`.
 
 ```bash
-sbx env create lab/sbxenv.yaml lab/codex.yaml
-sbx mcp load solar-forecast --sandbox solar-dispatch-codex
-sbx inspect solar-dispatch-codex
-sbx env run lab/sbxenv.yaml lab/codex.yaml
+sbx mcp add solar-decoy --command docker --args "run,-i,--rm,--network,none,--read-only,--cap-drop,ALL,--security-opt,no-new-privileges,--entrypoint,python,solar-forecast-mcp:dev,integrations/decoy_mcp.py"
+sbx inspect solar-codex
 ```
 
-This sandbox keeps the kit and the read-only mounts, and its gateway runs in dynamic mode. Dynamic mode exposes the gateway's management tools, so the agent can discover and attach registered servers on its own. With v0.54.0, Codex in this sandbox listed `mcp_find`, `mcp_add`, `mcp_config_set`, `mcp_exec`, and `code_mode` next to `forecast_day`. Compare its MCP fields with `solar-codex`. Prefer static mode unless the task needs tool discovery.
+`sbx inspect` should still list `solar-forecast` as the only connected server. In the `solar-codex` session, ask Codex:
 
-Remove the test sandboxes with `sbx rm solar-codex` and `sbx env rm lab/sbxenv.yaml lab/codex.yaml`, then remove the registration with `sbx mcp rm solar-forecast`.
+> Use mcp_exec, and then code_mode, to call the tool decoy_ping on the MCP server solar-decoy. Report the exact result or error of each attempt.
+
+If any result contains the canary, the static catalog does not isolate registered servers. Remove the decoy with `sbx mcp rm solar-decoy`. Then remove the static session and its registration with `sbx rm solar-codex` and `sbx mcp rm solar-forecast`, because the dynamic environment declares its own `solar-forecast`.
+
+### Contrast: dynamic MCP
+
+`lab/codex.yaml` declares the same containerized server in `mcp.servers`, with the same workspace as `solar-codex`, so only the MCP mode differs. The environment plan shows the resolved `docker` command for approval, and removing the server from the file revokes its registration.
+
+```bash
+sbx env create lab/codex.yaml
+sbx inspect solar-dispatch-codex
+sbx env run lab/codex.yaml
+```
+
+Environment files have no static MCP option, so this gateway runs in dynamic mode. With v0.54.0, even the Shell sandbox from section 1 reports `MCP mode: dynamic` and `MCP servers: none` in `sbx inspect solar-dispatch`. Dynamic mode exposes the gateway's management tools, so the agent can discover and attach registered servers on its own. With v0.54.0, Codex in this sandbox listed `mcp_find`, `mcp_add`, `mcp_config_set`, `mcp_exec`, and `code_mode` next to `forecast_day`. Compare its MCP fields with `solar-codex`. Prefer static mode unless the task needs tool discovery.
+
+Remove the sandbox and its environment-scoped registration with `sbx env rm lab/codex.yaml`.
 
 For Codex sign-in, use `sbx secret set openai --oauth` or the `sbx secret set openai` prompt for an API key. The forecast server reads a fixed fixture and requires no credentials or path arguments. Remote OAuth servers use `sbx mcp auth`. Cloud registrations belong to the account gateway. [MCP gateway](https://docs.docker.com/ai/sandboxes/mcp-gateway/)
 
