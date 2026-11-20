@@ -5,8 +5,8 @@
 # and run on a Docker Hardened Image, as the application image does. Build from the
 # repository root:
 #   docker build -f integrations/Dockerfile -t solar-forecast-mcp:dev .
-# Without dhi.io access, add:
-#   --build-arg RUNTIME_IMAGE=python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91
+# Without dhi.io access, reuse the builder image as the runtime:
+#   --build-arg RUNTIME_IMAGE=<the python:3.13-slim reference in the builder FROM line>
 
 ARG RUNTIME_IMAGE=dhi.io/python:3.13@sha256:ab678ca8fa69d36f1386fb71f4252d1a9561b7542ca84f5d14babffebcf4f479
 

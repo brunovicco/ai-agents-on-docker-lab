@@ -9,6 +9,12 @@ updates:
       interval: weekly
     commit-message:
       prefix: "docker"
+    # main requires up-to-date branches, so bundle updates: one pull request per base image
+    # for both Dockerfiles, instead of one per directory.
+    groups:
+      base-images:
+        patterns: ["*"]
+        group-by: dependency-name
     # The builder must match the hardened 3.13 runtime and requires-python, so a new Python
     # minor or major version is a deliberate change. Dependabot still updates digests.
     ignore:
@@ -21,6 +27,10 @@ updates:
       interval: weekly
     commit-message:
       prefix: "ci"
+    # main requires up-to-date branches, so bundle the week's updates into one pull request.
+    groups:
+      actions:
+        patterns: ["*"]
 
   - package-ecosystem: uv
     directory: /
@@ -28,6 +38,10 @@ updates:
       interval: weekly
     commit-message:
       prefix: "deps"
+    # main requires up-to-date branches, so bundle the week's updates into one pull request.
+    groups:
+      python-dependencies:
+        patterns: ["*"]
     # Major versions, such as the MCP SDK 2.x, need a reviewed migration.
     ignore:
       - dependency-name: "*"

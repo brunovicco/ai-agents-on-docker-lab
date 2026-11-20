@@ -55,8 +55,8 @@ The Dockerfile uses uv on the Docker Official Python image to install the locked
 the project, not as an editable link, into `site-packages`. The runtime stage copies only those
 packages and the bundled forecast onto `dhi.io/python:3.13`, a Docker Hardened Image without a
 shell or package manager, and runs the dispatch CLI as user 65532. With its default arguments it
-emits a proposal for the bundled forecast. Without `dhi.io` access, add
-`--build-arg RUNTIME_IMAGE=python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91`.
+emits a proposal for the bundled forecast. Without `dhi.io` access, pass `--build-arg RUNTIME_IMAGE=`
+with the `python:3.13-slim` reference from the `FROM … AS builder` line, so the runtime matches the builder.
 
 The `container` CI job builds the application and MCP images, runs the application without network
 on a read-only filesystem, verifies its proposal on the runner, checks the runtime user, confirms
@@ -71,6 +71,10 @@ provenance attestations. See the [sandbox walkthrough](SANDBOX-LAB.md#published-
 to inspect them.
 
 Dependabot proposes weekly updates for the pinned base images, GitHub Actions, and `uv.lock`.
+It bundles each ecosystem's updates, and each base image across both Dockerfiles, into one pull
+request, because `main` requires branches to be up to date before merge. It ignores Python minor
+and major versions for the images, which must match the hardened 3.13 runtime, and major versions
+of Python dependencies.
 
 ## Harness provenance
 

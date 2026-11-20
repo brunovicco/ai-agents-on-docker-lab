@@ -90,7 +90,10 @@ jobs:
         if: env.DHI_USERNAME == ''
         run: |
           echo "::warning::DOCKERHUB_USERNAME is not set, so the images run on the Docker Official Python image instead of DHI"
-          echo "RUNTIME_ARG=--build-arg RUNTIME_IMAGE=python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91" >> "$GITHUB_ENV"
+          # Reuse the builder image, so Dependabot's digest updates apply to the fallback too.
+          builder=$(sed -n 's/^FROM \(python:3\.13-slim@sha256:[0-9a-f]*\) AS builder$/\1/p' Dockerfile)
+          test -n "$builder"
+          echo "RUNTIME_ARG=--build-arg RUNTIME_IMAGE=$builder" >> "$GITHUB_ENV"
 
       - name: Build application image
         run: docker build ${RUNTIME_ARG:-} -t solar-dispatch:ci .
