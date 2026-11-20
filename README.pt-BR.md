@@ -2,6 +2,8 @@
 
 [English](README.md) · **Português do Brasil**
 
+> **Confie no verificador, não no agente.** Um planejador dentro de um sandbox Docker só pode propor. O host decide, usando uma previsão que o sandbox não consegue alterar.
+
 Execute um planejador de recarga no **Docker Sandboxes** e valide a proposta no host. O sandbox recebe uma área de trabalho gravável e uma previsão solar de somente leitura. O host mantém a previsão original e toma a decisão final.
 
 O exercício usa dados sintéticos. Um veículo elétrico precisa de **6 kWh**, e o planejador deve escolher as duas horas de menor consumo de energia da rede.
@@ -19,6 +21,8 @@ O script exibe o plano do ambiente, cria uma microVM Shell e executa o comando `
 ```json
 {"decision": "accepted", "hours": [10, 11], "grid_wh": 600}
 ```
+
+Para guardar uma transcrição revisável da execução, rode `bash lab/record.sh` em seguida. Veja [Record evidence](docs/SANDBOX-LAB.md#record-evidence).
 
 Para a primeira configuração, incluindo a inicialização da política de rede local, consulte o [roteiro de Docker Sandboxes](docs/SANDBOX-LAB.md#1-local-isolation-and-network-policy).
 
@@ -44,7 +48,7 @@ flowchart TB
 | Experimento | O que observar |
 | --- | --- |
 | [Sistema de arquivos e política de rede](docs/SANDBOX-LAB.md#1-local-isolation-and-network-policy) | Confirme que a área de trabalho é gravável e a previsão é somente leitura. Identifique no log a regra que bloqueou uma requisição. |
-| [Codex via MCP](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) | Valide uma proposta do Codex no host e compare os catálogos de ferramentas dinâmico e estático. |
+| [Codex via MCP](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) | Dê ao Codex um catálogo MCP estático, valide a proposta no host e compare com um gateway dinâmico. |
 | [Buildx e cadeia de suprimentos](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) | Compile o kit e a imagem da aplicação, sirva a previsão em loopback e exporte um arquivo OCI com SBOM e proveniência. |
 | [Docker Cloud](docs/SANDBOX-LAB.md#4-cloud-execution-and-transfer) | Execute o planejador em um sandbox temporário na nuvem e valide o resultado no host. |
 

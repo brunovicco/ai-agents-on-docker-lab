@@ -30,29 +30,68 @@ The probe first verifies that the workspace is writable and the forecast cannot 
 
 When finished, use `sbx stop solar-dispatch` and `sbx env rm lab/sbxenv.yaml`. The host workspace remains available. Keep the sandbox and its SSH alias in place while the VS Code remote workspace is open.
 
+### Record evidence
+
+Most readers cannot run a microVM, so keep a transcript of what the sandbox did. After `bash lab/demo.sh sandbox`, record the sandbox proposal and its host verification, the sandbox configuration, the probe, a blocked request from inside the sandbox, and the policy log.
+
+```bash
+bash lab/record.sh
+```
+
+After the section 2 experiments, add sandbox names to capture their MCP mode, for example `bash lab/record.sh solar-codex solar-dispatch-codex`. The transcript goes to `docs/evidence/<date>-local.md`, or to the path in `SOLAR_EVIDENCE`. Each run replaces that file. The probe adds the sandbox-scoped deny rule again. Review the transcript before committing it, because `sbx` output can include usernames and host paths. For a terminal recording, wrap the demo with `asciinema rec docs/evidence/demo.cast -c "bash lab/demo.sh sandbox"`.
+
 ## 2. Codex, credentials, and MCP
 
-Create a Codex environment with the same mounts. Register the forecast server from the repository root. The registration points to the synchronized Python environment and server code on the host, outside the writable sandbox workspace.
+Register the forecast server from the repository root. The registration points to the synchronized Python environment and server code on the host, outside any sandbox workspace. Stdio servers run on the host with your privileges, so register only code you have reviewed.
 
 ```bash
 uv sync --frozen --all-groups --extra observability --extra mcp
 uv run --extra mcp python integrations/check_mcp.py
 sbx mcp add solar-forecast --command "$PWD/.venv/bin/python" --args integrations/forecast_mcp.py --dir "$PWD"
 sbx mcp inspect solar-forecast
-sbx env create lab/sbxenv.yaml lab/codex.yaml
-sbx mcp load solar-forecast --sandbox solar-dispatch-codex
-sbx env run lab/sbxenv.yaml lab/codex.yaml
 ```
 
-Ask Codex to call `forecast_day` through MCP, select the hours that minimize grid energy, and write only the JSON object with `hours` to `/tmp/solar-answer.json`. Approve the read-only tool call if prompted. In another terminal, verify the file against the original forecast.
+### Static MCP: a fixed tool catalog
+
+Start Codex with the task workspace and a fixed tool catalog.
 
 ```bash
+sbx run codex ./lab/desk --name solar-codex --static-mcp solar-forecast
+```
+
+This session mounts `lab/desk` and the read-only agent skills directory that `sbx` adds. It has no forecast mount, so `forecast_day` is the only way to read the forecast. In static mode the gateway does not offer `mcp-find`, `mcp-add`, or `mcp-config-set`, so the agent cannot discover or attach other registered servers. With v0.54.0, Codex listed `forecast_day` and two gateway tools, `mcp_exec` and `code_mode`. Its other MCP tools belong to the Codex client, not the gateway. Ask Codex to follow `TASK.md` and approve the read-only tool call if prompted. In another terminal, confirm the mode and verify the proposal against the original forecast.
+
+```bash
+sbx inspect solar-codex
 set -o pipefail
-sbx exec solar-dispatch-codex cat /tmp/solar-answer.json |
+sbx exec solar-codex cat /tmp/solar-answer.json |
   PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
 ```
 
-For a fixed tool catalog, run `sbx run codex ./lab/desk --name solar-fixed --static-mcp solar-forecast`. This session gets its forecast through MCP. Compare the MCP fields in `sbx inspect solar-fixed` and `sbx inspect solar-dispatch-codex`. Remove the test sandboxes with `sbx rm solar-fixed` and `sbx env rm lab/sbxenv.yaml lab/codex.yaml`, then remove the registration with `sbx mcp rm solar-forecast`.
+The MCP fields of `sbx inspect` report static mode with `solar-forecast` as the only connected server. To test the boundary, write a malicious answer inside the sandbox and confirm that the host rejects it.
+
+```bash
+sbx exec solar-codex sh -c 'printf "%s" "{\"hours\":[9,12],\"hours\":[10,11]}" > /tmp/attack.json'
+sbx exec solar-codex cat /tmp/attack.json |
+  PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
+```
+
+The verifier exits with status 1 and reports `Duplicate JSON key`.
+
+### Contrast: dynamic MCP
+
+Create the Codex environment on top of the Shell environment and load the server into the running sandbox.
+
+```bash
+sbx env create lab/sbxenv.yaml lab/codex.yaml
+sbx mcp load solar-forecast --sandbox solar-dispatch-codex
+sbx inspect solar-dispatch-codex
+sbx env run lab/sbxenv.yaml lab/codex.yaml
+```
+
+This sandbox keeps the kit and the read-only mounts, and its gateway runs in dynamic mode. Dynamic mode exposes the gateway's management tools, so the agent can discover and attach registered servers on its own. With v0.54.0, Codex in this sandbox listed `mcp_find`, `mcp_add`, `mcp_config_set`, `mcp_exec`, and `code_mode` next to `forecast_day`. Compare its MCP fields with `solar-codex`. Prefer static mode unless the task needs tool discovery.
+
+Remove the test sandboxes with `sbx rm solar-codex` and `sbx env rm lab/sbxenv.yaml lab/codex.yaml`, then remove the registration with `sbx mcp rm solar-forecast`.
 
 For Codex sign-in, use `sbx secret set openai --oauth` or the `sbx secret set openai` prompt for an API key. The forecast server reads a fixed fixture and requires no credentials or path arguments. Remote OAuth servers use `sbx mcp auth`. Cloud registrations belong to the account gateway. [MCP gateway](https://docs.docker.com/ai/sandboxes/mcp-gateway/)
 

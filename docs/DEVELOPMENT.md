@@ -50,7 +50,9 @@ docker run --rm --read-only --network none solar-dispatch-lab
 
 The Dockerfile uses uv to install locked dependencies into a virtual environment. The slim
 runtime runs the dispatch CLI as a non-root user. With its default arguments it emits a
-proposal for the bundled forecast. See the [sandbox walkthrough](SANDBOX-LAB.md) for the kit
+proposal for the bundled forecast. The `container` CI job builds the image, runs it without network
+on a read-only filesystem, verifies its proposal on the runner, checks the non-root user, and
+confirms that a suboptimal proposal is rejected inside the container. See the [sandbox walkthrough](SANDBOX-LAB.md) for the kit
 build and the OCI export with attestations.
 
 ## Harness provenance
