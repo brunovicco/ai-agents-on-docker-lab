@@ -61,10 +61,12 @@ emits a proposal for the bundled forecast. Without `dhi.io` access, add
 The `container` CI job builds the application and MCP images, runs the application without network
 on a read-only filesystem, verifies its proposal on the runner, checks the runtime user, confirms
 that a suboptimal proposal is rejected inside the container, and runs the MCP checks inside the
-MCP image. It uses the hardened runtime when the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
+MCP image. It also builds both images for arm64 under QEMU and verifies the arm64 application
+image's proposal, so a platform-specific failure shows up before merge. It uses the hardened runtime when the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
 repository secrets hold a Docker username and a read-only personal access token. Otherwise it falls
 back to the official image with a warning. The `publish` job runs on pushes to `main`, requires
-those secrets, and publishes the images and the kit to GitHub Container Registry with SBOM and
+those secrets, and publishes the images and the kit for `linux/amd64` and `linux/arm64` to GitHub Container Registry
+with SBOM and
 provenance attestations. See the [sandbox walkthrough](SANDBOX-LAB.md#published-images-and-attestations)
 to inspect them.
 

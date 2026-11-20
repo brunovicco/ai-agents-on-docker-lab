@@ -52,7 +52,7 @@ Both images run on a Docker Hardened Image without a shell or package manager, a
 | `python:3.13-slim` | 0 / 11 / 8 / 34 | 8 | Yes | D (39%) |
 | `dhi.io/python:3.13` | 0 / 2 / 11 / 4 | 0 | No | A (94%) |
 
-The application image shrank from 218 MB to 133 MB. On every push to `main`, CI publishes the images with an SBOM and provenance, and the sandbox kit with its egress policy, to GitHub Container Registry.
+The application image shrank from 218 MB to 133 MB. On every push to `main`, CI publishes the images for amd64 and arm64 with an SBOM and provenance, and the sandbox kit with its egress policy, to GitHub Container Registry.
 
 ## Extend the experiment
 

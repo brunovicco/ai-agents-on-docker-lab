@@ -151,7 +151,7 @@ docker buildx rm solar-attest
 
 ### Published images and attestations
 
-On every push to `main`, CI publishes the application image, the MCP server image, and the sandbox kit to GitHub Container Registry. The images carry an SBOM and maximal provenance from Buildx. The kit keeps its v3 descriptor, including the deny-all egress policy, in the manifest annotations.
+On every push to `main`, CI publishes the application image, the MCP server image, and the sandbox kit to GitHub Container Registry for `linux/amd64` and `linux/arm64`, so they run natively on Apple silicon. The images carry an SBOM and maximal provenance from Buildx. The kit keeps its v3 descriptor, including the deny-all egress policy, in the manifest annotations.
 
 ```bash
 docker buildx imagetools inspect ghcr.io/brunovicco/solar-dispatch:main --format '{{json .SBOM}}'
