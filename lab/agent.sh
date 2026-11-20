@@ -18,6 +18,25 @@ if ! docker model inspect "$model" >/dev/null 2>&1; then
   exit 1
 fi
 
+# Serve the forecast tool from a running container. A server started per session by Docker
+# Agent missed the 30-second turn budget. The port is published on loopback only, and the
+# container keeps a read-only filesystem, no capabilities, and an unprivileged user.
+container=solar-forecast-mcp-http
+docker rm -f "$container" >/dev/null 2>&1 || true
+docker run -d --rm --name "$container" -p 127.0.0.1:8822:8000 --read-only --cap-drop ALL \
+  --security-opt no-new-privileges solar-forecast-mcp:dev \
+  --transport streamable-http --host 0.0.0.0 --port 8000 >/dev/null
+trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+for _ in $(seq 1 40); do
+  status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8822/mcp || true)
+  [ "$status" != "000" ] && break
+  sleep 0.25
+done
+if [ "$status" = "000" ]; then
+  echo "The forecast MCP server did not start. Build it with section 2 of docs/SANDBOX-LAB.md." >&2
+  exit 1
+fi
+
 # restricted runs read-only-annotated tools and denies every other tool call. The host keeps the
 # full transcript: the evidence gate accepts the proposal only if the agent called forecast_day
 # before its final answer, and the verifier then checks the answer itself.

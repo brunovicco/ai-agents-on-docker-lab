@@ -129,6 +129,19 @@ jobs:
       - name: Check the MCP servers inside the container over stdio
         run: uv run --frozen --extra mcp python integrations/check_mcp.py --image solar-forecast-mcp:ci
 
+      - name: Check the forecast server over streamable HTTP on loopback
+        run: |
+          docker run -d --rm --name solar-forecast-mcp-http -p 127.0.0.1:8822:8000 --read-only \
+            --cap-drop ALL --security-opt no-new-privileges solar-forecast-mcp:ci \
+            --transport streamable-http --host 0.0.0.0 --port 8000
+          trap 'docker rm -f solar-forecast-mcp-http >/dev/null 2>&1 || true' EXIT
+          for _ in $(seq 1 40); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8822/mcp || true)" != "000" ] && break
+            sleep 0.25
+          done
+          uv run --frozen --extra mcp python integrations/check_mcp.py --url http://127.0.0.1:8822/mcp
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: evil.example' -X POST http://127.0.0.1:8822/mcp)" = "421"
+
       - name: Set up QEMU for arm64
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:

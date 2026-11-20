@@ -3,7 +3,7 @@
   "mcp_servers": [
     {
       "id": "solar-forecast",
-      "transport": "stdio in a container without network on a read-only filesystem",
+      "transport": "stdio in a container without network on a read-only filesystem; streamable HTTP on loopback for the Docker Agent planner",
       "scope": "read-only synthetic fixture"
     },
     {
