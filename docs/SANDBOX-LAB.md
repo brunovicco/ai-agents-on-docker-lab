@@ -108,23 +108,23 @@ If any result contains the canary, the static catalog does not isolate registere
 
 ### Contrast: dynamic MCP and the positive control
 
-A sandbox created without MCP servers starts with a dynamic gateway. With v0.54.0, the Shell sandbox from section 1 reports `MCP mode: dynamic` and `MCP servers: none`. Create a Codex sandbox the same way, then load the server into it.
+A sandbox created without MCP servers starts with a dynamic gateway. With v0.54.0, the Shell sandbox from section 1 reports `MCP mode: dynamic` and `MCP servers: none`. Create a Codex sandbox the same way.
 
 ```bash
-sbx mcp add solar-forecast --command docker --args "run,-i,--rm,--network,none,--read-only,--cap-drop,ALL,--security-opt,no-new-privileges,solar-forecast-mcp:dev"
 sbx create --name solar-dynamic codex ./lab/desk
-sbx mcp load solar-forecast --sandbox solar-dynamic
 sbx inspect solar-dynamic
 sbx run --name solar-dynamic
 ```
 
-Dynamic mode exposes the gateway's management tools, so the agent can discover and attach registered servers on its own. With v0.54.0, Codex in a dynamic sandbox listed `mcp_find`, `mcp_add`, `mcp_config_set`, `mcp_exec`, and `code_mode` next to `forecast_day`. This sandbox is also the positive control for the decoy test. Ask Codex:
+Dynamic mode exposes the gateway's management tools, so the agent can discover and attach registered servers on its own. This sandbox is the positive control for the decoy test. Ask Codex:
 
 > List every MCP tool you can call. Then use mcp_add to add the server solar-decoy and call decoy_ping. Report the exact result.
 
-The reply should contain the canary. That shows the decoy answers when it is reachable, so its absence from the static sandboxes comes from static mode. Prefer static mode unless the task needs tool discovery.
+With v0.54.0, Codex listed `mcp_find`, `mcp_add`, `mcp_config_set`, `mcp_exec`, and `code_mode`, added `solar-decoy` with `mcp_add`, and received `solar-decoy-canary-3f9c` from `decoy_ping`. The decoy answers when it is reachable, so its absence from both static sandboxes comes from static mode. Prefer static mode unless the task needs tool discovery.
 
-Clean up with `sbx rm solar-dynamic`, `sbx rm solar-codex`, `sbx env rm lab/codex.yaml`, `sbx mcp rm solar-decoy`, and `sbx mcp rm solar-forecast`.
+Servers declared in an environment file also stay with that environment. While `solar-dispatch-codex` existed, `sbx mcp add solar-forecast` failed because the name belonged to that environment, and `sbx mcp load solar-forecast --sandbox solar-dynamic` returned `403 Forbidden` with `not authorized for this sandbox instance`. To load the forecast server into another sandbox, remove the environment with `sbx env rm lab/codex.yaml` first.
+
+Clean up with `sbx rm solar-dynamic`, `sbx env rm lab/codex.yaml`, `sbx mcp rm solar-decoy`, and `sbx mcp rm solar-forecast` if you registered it on the host.
 
 For Codex sign-in, use `sbx secret set openai --oauth` or the `sbx secret set openai` prompt for an API key. The forecast server reads a fixed fixture and requires no credentials or path arguments. Remote OAuth servers use `sbx mcp auth`. Cloud registrations belong to the account gateway. [MCP gateway](https://docs.docker.com/ai/sandboxes/mcp-gateway/)
 
