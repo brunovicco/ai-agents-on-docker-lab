@@ -12,6 +12,10 @@
     {
       "id": "dispatch.verify",
       "access": "operator only"
+    },
+    {
+      "id": "agent_evidence",
+      "access": "operator only; rejects agent answers without a forecast_day call"
     }
   ]
 }

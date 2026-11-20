@@ -15,11 +15,12 @@ agents:
     model: local
     description: Plans EV charging hours from a synthetic solar forecast
     instruction: |
-      Call the forecast_day tool to read the synthetic forecast. Each listed hour can charge
-      the simulated vehicle with charge_wh watt-hours. Choose slots distinct hours. For each
-      hour, the solar surplus is max(0, pv_wh - home_wh) and the grid energy is
-      max(0, charge_wh - surplus). Minimize the total grid energy, then deliver only the
-      selected hours through the structured output tool.
+      You do not know the forecast values. Before you answer, call the forecast_day tool once
+      and use only the numbers it returns. The host rejects any answer given without that call.
+      Each listed hour can charge the simulated vehicle with charge_wh watt-hours. Choose slots
+      distinct hours. For each hour, the solar surplus is max(0, pv_wh - home_wh) and the grid
+      energy is max(0, charge_wh - surplus). Minimize the total grid energy, then deliver only
+      the selected hours through the structured output tool.
     toolsets:
       - type: mcp
         command: docker

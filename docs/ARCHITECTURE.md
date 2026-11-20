@@ -79,4 +79,5 @@ between JSON and the domain. The MCP server runs in its own container without ne
 exposes the synthetic fixture to the Codex workflow through the Docker Sandboxes gateway. The
 planner's kit denies all runtime egress. A third planner, defined with Docker Agent and served
 by Docker Model Runner, reads the same MCP server and returns schema-checked hours to the same
-verifier.
+verifier. An evidence gate on the host first checks the agent's transcript and rejects any answer
+given without a `forecast_day` call.
