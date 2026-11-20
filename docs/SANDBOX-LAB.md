@@ -45,7 +45,7 @@ Most readers cannot run a microVM, so keep a transcript of what the sandbox did.
 bash lab/record.sh
 ```
 
-After the section 2 experiments, add sandbox names to capture their MCP mode, for example `bash lab/record.sh solar-codex solar-dispatch-codex`. The transcript goes to `docs/evidence/<date>-local.md`, or to the path in `SOLAR_EVIDENCE`. Each run replaces that file. Review the transcript before committing it, because `sbx` output can include usernames and host paths. For a terminal recording, wrap the demo with `asciinema rec docs/evidence/demo.cast -c "bash lab/demo.sh sandbox"`.
+After the section 2 experiments, add sandbox names to capture their MCP mode, for example `bash lab/record.sh solar-codex solar-dispatch-codex`. The transcript goes to `docs/evidence/<date>-local.md`, or to the path in `SOLAR_EVIDENCE`. Each run replaces that file. Review the transcript before committing it, because `sbx` output can include usernames and host paths. For a terminal recording, `lab/demo.tape` scripts one with [VHS](https://github.com/charmbracelet/vhs): it runs the sandbox planner, the host verification, the blocked request, the policy check, and a rejected proposal, and waits for each output instead of sleeping a fixed time. Render it with `vhs lab/demo.tape` on the same host; the GIF goes to `docs/assets/sandbox-demo.gif`. Because the tape is code, the recording can be regenerated after any change and reviewed like the scripts it runs.
 
 ## 2. Codex, credentials, and MCP
 
@@ -280,7 +280,9 @@ The agent instruction now states that the model does not know the forecast and t
 
 CI validates `lab/agent/solar-planner.yaml` against the official Docker Agent JSON schema, pinned to a commit, and `compose.yaml` with `docker compose config`. Running the model needs Model Runner, so CI does not run the agent.
 
-## 6. Further experiments
+## 6. Not covered by this lab
+
+Nothing in this section was run for the lab, so none of it is a finding. Each row names a Docker Sandboxes area the experiments above did not touch, with the command to start from and what to look for. Treat them as leads to measure the same way: pin the versions, record the transcript, and keep only what you observed.
 
 | Area | Experiment or inspection | What to observe |
 | --- | --- | --- |
