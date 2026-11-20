@@ -81,7 +81,7 @@ sbx inspect solar-dispatch-codex
 sbx env run lab/sbxenv.yaml lab/codex.yaml
 ```
 
-This sandbox keeps the kit and the read-only mounts, and its gateway runs in dynamic mode. Dynamic mode exposes `mcp-find`, `mcp-add`, and `mcp-config-set`, so the agent can attach registered servers on its own. Compare its MCP fields with `solar-codex`. Prefer static mode unless the task needs tool discovery.
+This sandbox keeps the kit and the read-only mounts, and its gateway runs in dynamic mode. Dynamic mode exposes the gateway's management tools, so the agent can discover and attach registered servers on its own. With v0.54.0, Codex in this sandbox listed `mcp_find`, `mcp_add`, `mcp_config_set`, `mcp_exec`, and `code_mode` next to `forecast_day`. Compare its MCP fields with `solar-codex`. Prefer static mode unless the task needs tool discovery.
 
 Remove the test sandboxes with `sbx rm solar-codex` and `sbx env rm lab/sbxenv.yaml lab/codex.yaml`, then remove the registration with `sbx mcp rm solar-forecast`.
 
