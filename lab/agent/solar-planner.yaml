@@ -10,6 +10,10 @@ models:
     provider: dmr
     model: ai/qwen3:4b
     temperature: 0
+    # With reasoning on, Model Runner's llama.cpp rejected the turn after the tool call with
+    # "Cannot have 2 or more assistant messages at the end of the list", and a run took
+    # minutes. none disables reasoning; the host verifier still judges the arithmetic.
+    thinking_budget: none
 
 agents:
   root:
