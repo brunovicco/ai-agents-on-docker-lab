@@ -42,7 +42,7 @@ fi
 # forecast_day before it, and the verifier then checks the answer itself.
 transcript=${SOLAR_AGENT_TRANSCRIPT:-$(mktemp)}
 if ! docker agent run --exec --json --safety restricted lab/agent/solar-planner.yaml \
-  "Plan the charging hours for the forecast. /no_think" >"$transcript"; then
+  "Plan the charging hours for the forecast." >"$transcript"; then
   echo "Docker Agent failed before producing a proposal. Transcript: $transcript" >&2
   exit 1
 fi

@@ -19,9 +19,6 @@ agents:
   root:
     model: local
     description: Plans EV charging hours from a synthetic solar forecast
-    # /no_think is Qwen3's switch to skip reasoning: with reasoning a run took about 12 minutes,
-    # and thinking_budget: none did not turn it off through Model Runner. lab/agent.sh repeats
-    # it in the user message, where Qwen3 honors it more reliably.
     instruction: |
       You do not know the forecast values. Before you answer, call the forecast_day tool once
       and use only the numbers it returns. The host rejects any answer given without that call.
@@ -30,7 +27,6 @@ agents:
       energy is max(0, charge_wh - surplus). Minimize the total grid energy. Reply with only a
       JSON object of the form {"hours": [hour, ...]}, one entry per selected hour, and no
       other text.
-      /no_think
     toolsets:
       # A stdio server started per session with docker run took about 44 seconds to become
       # ready under Docker Agent v1.163.0 on Docker Desktop, past the 30-second turn budget, so
