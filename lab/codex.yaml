@@ -1,7 +1,7 @@
 schemaVersion: "1"
 name: solar-dispatch-codex
 agent: codex
-# Same workspace and server as the static session, so only the MCP mode differs.
+# Declaring mcp.servers creates the sandbox in static MCP mode with only these servers.
 workspace: ./desk
 kits:
   # Pin the agent workload by digest; sbx otherwise resolves docker.io/sbx/codex:latest.
