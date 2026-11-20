@@ -52,7 +52,7 @@ After the section 2 experiments, add sandbox names to capture their MCP mode, fo
 Build the forecast server image and check it over the MCP stdio transport. `sbx` runs stdio servers on the host, outside sandbox isolation, so every registration in this section launches the server through Docker without network, on a read-only filesystem, without capabilities, and as a non-root user. The image contains the server code and the synthetic fixture, and nothing else from the host.
 
 ```bash
-uv sync --frozen --all-groups --extra observability --extra mcp
+uv sync --frozen --all-groups --extra mcp
 docker build -f integrations/Dockerfile -t solar-forecast-mcp:dev .
 uv run --extra mcp python integrations/check_mcp.py --image solar-forecast-mcp:dev
 ```

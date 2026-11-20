@@ -3,12 +3,11 @@
 ## Setup
 
 ```bash
-uv sync --frozen --all-groups --extra observability --extra mcp
+uv sync --frozen --all-groups --extra mcp
 ```
 
-The development environment uses Python 3.13. The `observability` extra provides the optional
-OpenTelemetry runtime and the `mcp` extra installs the SDK for the forecast server and its
-protocol check.
+The development environment uses Python 3.13. The package itself has no runtime dependencies;
+the `mcp` extra installs the SDK for the forecast server and its protocol check.
 
 ## Run checks
 
@@ -23,14 +22,6 @@ read-only annotations and output schema of `forecast_day`, and calls both tools.
 `--image solar-forecast-mcp:dev` to run the same checks against the container built from
 `integrations/Dockerfile`, or `--url http://127.0.0.1:8822/mcp` to check a server started with
 `--transport streamable-http`.
-
-For focused observability tests:
-
-```bash
-uv run pytest tests/unit/test_observability.py tests/unit/test_logging.py
-```
-
-Tests use in-memory exporters or fakes. Do not point development or CI checks at a real backend.
 
 ### Dispatch smoke tests
 
@@ -81,7 +72,9 @@ of Python dependencies.
 
 The project started from the [Codex Python Engineering Harness](https://github.com/brunovicco/codex-python-engineering-harness/tree/e9e297456573d216f070a41a7cdaa108dd599c5b)
 v1.2.1 using the `service` and `agentic` profiles. The original generator metadata is in
-`.harness.json`. The following command reproduces the scaffold from that checkout:
+`.harness.json`. The scaffold's OpenTelemetry, Langfuse, and structured-logging adapters, with
+their tests and the empty application layer, were removed because the dispatch flow never used
+them; `.harness.json` still lists them as generated files. The following command reproduces the scaffold from that checkout:
 
 ```bash
 python3 bootstrap.py --name solar-dispatch-lab --package solar_dispatch \
