@@ -21,7 +21,7 @@ A tarefa é pequena de propósito. Uma previsão solar sintética lista quatro h
 | Docker Model Runner | Serve o `ai/qwen3:4b` no host, sem chave de API | [5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) |
 | Docker Agent | Define o planejador local em YAML e o executa sem interface, com transcript | [5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) |
 | Docker Hardened Images | Runtime das imagens da aplicação e do servidor MCP | [3](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) |
-| Buildx e GHCR | Publica imagens multiarquitetura com SBOM e proveniência, e o kit como artefato OCI | [3](docs/SANDBOX-LAB.md#published-images-and-attestations) |
+| Buildx, GHCR e cosign | Publica imagens multiarquitetura com SBOM e proveniência, e o kit como artefato OCI, todos assinados sem chave | [3](docs/SANDBOX-LAB.md#published-images-and-attestations) |
 | Docker Scout | Compara o runtime endurecido com a imagem oficial | [Cadeia de suprimentos](#cadeia-de-suprimentos) |
 | Sandboxes na Docker Cloud | Executa o planejador num sandbox temporário na nuvem | [4](docs/SANDBOX-LAB.md#4-cloud-execution-and-transfer) |
 
@@ -101,6 +101,14 @@ A cada push no `main`, o CI publica no GitHub Container Registry, para amd64 e a
 | `ghcr.io/brunovicco/solar-dispatch` | CLI do planejador e do verificador, com SBOM e proveniência |
 | `ghcr.io/brunovicco/solar-forecast-mcp` | Servidores MCP de previsão (somente leitura) e isca, com SBOM e proveniência |
 | `ghcr.io/brunovicco/solar-kit` | Kit do sandbox, com a política que nega saída de rede nas anotações do manifest |
+
+Cada imagem e o kit são assinados por digest com cosign sem chave (keyless), vinculados ao workflow `quality` na `main`:
+
+```bash
+cosign verify ghcr.io/brunovicco/solar-dispatch:main \
+  --certificate-identity https://github.com/brunovicco/solar-dispatch-lab/.github/workflows/quality.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
 
 O Dependabot mantém atualizados os digests das imagens base, as actions e as dependências Python.
 

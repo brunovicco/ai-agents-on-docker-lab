@@ -21,7 +21,7 @@ The task is small on purpose. A synthetic solar forecast lists four hours, and a
 | Docker Model Runner | Serves `ai/qwen3:4b` on the host, with no API key | [5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) |
 | Docker Agent | Defines the local planner in YAML and runs it headless with a transcript | [5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) |
 | Docker Hardened Images | Runtime of the application and MCP server images | [3](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) |
-| Buildx and GHCR | Publishes multi-arch images with SBOM and provenance, and the kit as an OCI artifact | [3](docs/SANDBOX-LAB.md#published-images-and-attestations) |
+| Buildx, GHCR, and cosign | Publishes multi-arch images with SBOM and provenance, and the kit as an OCI artifact, all signed keyless | [3](docs/SANDBOX-LAB.md#published-images-and-attestations) |
 | Docker Scout | Compares the hardened runtime with the official image | [Supply chain](#supply-chain) |
 | Docker Cloud sandboxes | Runs the planner in a short-lived cloud sandbox | [4](docs/SANDBOX-LAB.md#4-cloud-execution-and-transfer) |
 
@@ -101,6 +101,14 @@ On every push to `main`, CI publishes to GitHub Container Registry, for amd64 an
 | `ghcr.io/brunovicco/solar-dispatch` | Planner and verifier CLI, with SBOM and provenance |
 | `ghcr.io/brunovicco/solar-forecast-mcp` | Read-only forecast and decoy MCP servers, with SBOM and provenance |
 | `ghcr.io/brunovicco/solar-kit` | Sandbox kit, with its deny-all egress policy in the manifest annotations |
+
+Each image and the kit are signed by digest with keyless cosign, bound to the `quality` workflow on `main`:
+
+```bash
+cosign verify ghcr.io/brunovicco/solar-dispatch:main \
+  --certificate-identity https://github.com/brunovicco/solar-dispatch-lab/.github/workflows/quality.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
 
 Dependabot keeps base image digests, actions, and Python dependencies current.
 
