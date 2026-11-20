@@ -39,4 +39,4 @@ The debug log of that command, with the stdio server started by `docker run`:
 | Docker Agent, server started with `docker run` over stdio | about 44 s, past the 30 s turn budget |
 | Python MCP client, the same `docker run` command over stdio | 1.96 s |
 | Docker Agent, the same server run with the host Python over stdio | 0.75 s |
-| Python MCP client, the server already running in a container over HTTP (Linux CI host) | 1.4 s to ready, then immediate |
+| Python MCP client, the server already running in a container over HTTP (Linux test host) | 1.4 s to ready, then immediate |
