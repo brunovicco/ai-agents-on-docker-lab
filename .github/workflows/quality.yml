@@ -140,7 +140,12 @@ jobs:
             sleep 0.25
           done
           uv run --frozen --extra mcp python integrations/check_mcp.py --url http://127.0.0.1:8822/mcp
-          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: evil.example' -X POST http://127.0.0.1:8822/mcp)" = "421"
+          # A well-formed MCP request with a non-loopback Host must be refused (DNS rebinding).
+          status=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8822/mcp \
+            -H 'Host: evil.example' -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"ping"}')
+          test "$status" = "421"
 
       - name: Set up QEMU for arm64
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
