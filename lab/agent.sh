@@ -11,12 +11,19 @@ if ! python3 -c 'import sys; v = tuple(map(int, sys.argv[1].split("."))); sys.ex
   echo "Docker Agent v1.147.0 or later is required, found ${version:-none}. Update Docker Desktop." >&2
   exit 1
 fi
-if ! docker model status >/dev/null 2>&1; then
-  echo "Docker Model Runner is not running. Enable it with: docker desktop enable model-runner" >&2
+model=$(sed -n 's/^ *model: \(ai\/.*\)$/\1/p' lab/agent/solar-planner.yaml)
+if ! docker model inspect "$model" >/dev/null 2>&1; then
+  echo "Model $model is not available. Enable Model Runner with 'docker desktop enable model-runner'," >&2
+  echo "wait for Docker to restart, then run 'docker model pull $model'." >&2
   exit 1
 fi
 
-# restricted runs read-only-annotated tools and denies every other tool call.
-docker agent run --exec --last --json --safety restricted lab/agent/solar-planner.yaml \
-  "Plan the charging hours for the forecast." |
+# restricted runs read-only-annotated tools and denies every other tool call. Keep the answer
+# separate so that an agent failure is reported as such, not as a rejected proposal.
+if ! answer=$(docker agent run --exec --last --json --safety restricted \
+  lab/agent/solar-planner.yaml "Plan the charging hours for the forecast."); then
+  echo "Docker Agent failed before producing a proposal." >&2
+  exit 1
+fi
+printf '%s\n' "$answer" |
   PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
