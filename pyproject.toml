@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.12,<2"]
+mcp = ["mcp>=1.12,<3"]
 # Opt-in LLM tracing; see docs/LLM_OBSERVABILITY.md. Install with `uv sync --extra tracing`.
 tracing = [
     "langfuse>=3.0",
