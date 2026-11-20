@@ -21,14 +21,14 @@ def main() -> None:
             return
         raw = sys.stdin.buffer.read(4097)
         if len(raw) > 4096:
-            raise ValueError("Proposta excede 4 KiB")
+            raise ValueError("Proposal exceeds 4 KiB")
         candidate = json.loads(raw)
         if not isinstance(candidate, dict) or set(candidate) != {"hours"}:
-            raise ValueError("Formato de proposta inválido")
+            raise ValueError("Invalid proposal format")
         grid_wh = forecast.verify(candidate["hours"])
         print(json.dumps({"decision": "accepted", "hours": candidate["hours"], "grid_wh": grid_wh}))
     except (OSError, ValueError) as exc:
-        parser.exit(1, f"Rejeitado: {exc}\n")
+        parser.exit(1, f"Rejected: {exc}\n")
 
 
 if __name__ == "__main__":

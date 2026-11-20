@@ -3,37 +3,66 @@
 ## Setup
 
 ```bash
-uv sync --frozen --all-groups
+uv sync --frozen --all-groups --extra observability --extra mcp
 ```
 
-Service observability tests exercise the optional OpenTelemetry runtime without a collector:
-
-```bash
-uv sync --frozen --all-groups --extra observability
-uv run pytest tests/unit/test_observability.py tests/unit/test_logging.py
-```
-
-Tests use in-memory exporters or fakes. Do not point development or CI checks at a real backend.
+The development environment uses Python 3.13. The `observability` extra provides the optional
+OpenTelemetry runtime and the `mcp` extra installs the SDK for the forecast server and its
+protocol check.
 
 ## Run checks
 
 ```bash
 uv run python scripts/quality_gate.py
+uv run --extra mcp python integrations/check_mcp.py
 ```
+
+Use the quality gate to check lint, formatting, architecture, typing, pytest, governance, and
+dependency security. The MCP check starts the forecast server over stdio, initializes a session,
+discovers its tool, and calls `forecast_day`.
+
+For focused observability tests:
+
+```bash
+uv run pytest tests/unit/test_observability.py tests/unit/test_logging.py
+```
+
+Tests use in-memory exporters or fakes. Do not point development or CI checks at a real backend.
+
+### Dispatch smoke tests
+
+```bash
+bash lab/demo.sh local
+printf '%s\n' '{"hours":[9,12]}' |
+  PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
+```
+
+The first command should accept hours 10 and 11 with 600 Wh of grid energy. The second should
+exit with status 1 because a lower-cost schedule is available. See the
+[dispatch model](DISPATCH.md) for the full fixture and CLI contract.
 
 ## Container
 
 ```bash
 docker build -t solar-dispatch-lab .
-docker run --rm solar-dispatch-lab
+docker run --rm --read-only --network none solar-dispatch-lab
 ```
 
-`Dockerfile` is a multi-stage, uv-based build: a `builder` stage installs the locked
-dependencies and builds the package, then only the resulting virtualenv and source are copied
-into a slim, non-root runtime image. The shipped `CMD` is a placeholder — this harness is
-framework-agnostic and does not assume an ASGI app, CLI, or worker loop. Replace it with the
-project's real entrypoint. Adjust `.dockerignore` if new top-level files or directories need to
-be excluded from the build context.
+The Dockerfile uses uv to install locked dependencies into a virtual environment. The slim
+runtime runs the dispatch CLI as a non-root user. With its default arguments it emits a
+proposal for the bundled forecast. See the [sandbox walkthrough](SANDBOX-LAB.md) for the kit
+build and the OCI export with attestations.
+
+## Harness provenance
+
+The project started from the [Codex Python Engineering Harness](https://github.com/brunovicco/codex-python-engineering-harness/tree/e9e297456573d216f070a41a7cdaa108dd599c5b)
+v1.2.1 using the `service` and `agentic` profiles. The original generator metadata is in
+`.harness.json`. The following command reproduces the scaffold from that checkout:
+
+```bash
+python3 bootstrap.py --name solar-dispatch-lab --package solar_dispatch \
+  --target ../solar-dispatch-lab --profile service --governance-profile agentic
+```
 
 ## Local configuration
 

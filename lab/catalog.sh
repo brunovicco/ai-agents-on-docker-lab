@@ -4,12 +4,12 @@ set -euo pipefail
 case "${1:-local}" in
   local) cli=(sbx);;
   cloud) cli=(sbx --cloud);;
-  *) echo "Uso: bash lab/catalog.sh local|cloud" >&2; exit 2;;
+  *) echo "Usage: bash lab/catalog.sh local|cloud" >&2; exit 2;;
 esac
 walk() {
   local help_text child
   if ! help_text=$("${cli[@]}" "$@" --help 2>&1); then
-    printf '\n## %s %s\n\nAjuda indisponível nesta sessão.\n\n' "${cli[*]}" "$*"
+    printf '\n## %s %s\n\nHelp is unavailable in this session.\n\n' "${cli[*]}" "$*"
     return
   fi
   printf '\n## %s %s\n\n```text\n%s\n```\n' "${cli[*]}" "$*" "$help_text"

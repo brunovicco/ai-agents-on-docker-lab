@@ -42,8 +42,17 @@ def test_cli_reads_proposal_on_operator_side(
     monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(plan.encode())))
     main()
     assert json.loads(capsys.readouterr().out)["grid_wh"] == 600
-    for payload in [b"x", b" " * 4097, b'{"hours":[9,12]}', b'{"hours":[10,11],"grid_wh":0}']:
+    rejected_proposals = [
+        (b"x", "Expecting value"),
+        (b" " * 4097, "Proposal exceeds 4 KiB"),
+        (b'{"hours":[9,12]}', "A schedule with lower grid energy is available"),
+        (b'{"hours":[10,11],"grid_wh":0}', "Invalid proposal format"),
+    ]
+    for payload, reason in rejected_proposals:
         monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(payload)))
         with pytest.raises(SystemExit) as raised:
             main()
         assert raised.value.code == 1
+        output = capsys.readouterr()
+        assert output.out == ""
+        assert output.err.startswith(f"Rejected: {reason}")

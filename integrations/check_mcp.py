@@ -18,11 +18,11 @@ async def check() -> None:
         await session.initialize()
         result = await session.list_tools()
         if [tool.name for tool in result.tools] != ["forecast_day"]:
-            raise ValueError("Catálogo inesperado")
+            raise ValueError("Unexpected tool catalog")
         reply = await session.call_tool("forecast_day", {})
         block = reply.content[0]
         if reply.isError or block.type != "text" or json.loads(block.text)["slots"] != 2:
-            raise ValueError("Contrato MCP inválido")
+            raise ValueError("Invalid MCP response")
         print("MCP OK: initialize, tools/list, tools/call forecast_day")
 
 

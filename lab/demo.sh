@@ -13,5 +13,5 @@ case "${1:-local}" in
       python3 -m "$cli" verify "$forecast"
     sbx inspect solar-dispatch
     ;;
-  *) echo 'Uso: bash lab/demo.sh [local|sandbox]' >&2; exit 2;;
+  *) echo 'Usage: bash lab/demo.sh [local|sandbox]' >&2; exit 2;;
 esac

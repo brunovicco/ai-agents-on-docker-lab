@@ -1,1 +1,5 @@
-Escolha dois blocos de uma hora para carregar o veículo. A previsão sintética fica em /forecast/day.json. Cada bloco fornece charge_wh. Minimize a importação adicional da rede usando o excedente após o consumo da casa. Emita apenas um objeto JSON com o campo hours contendo as duas horas. Não existe integração com um carregador físico.
+Choose two one-hour blocks to charge the vehicle. Read the synthetic forecast at
+`/forecast/day.json` or through `forecast_day` if the task uses MCP. Each block delivers
+`charge_wh` watt-hours. Use the solar surplus after household consumption to minimize
+additional grid energy. Return a single JSON object with an `hours` array containing the
+two selected hours. The exercise uses a simulated vehicle.

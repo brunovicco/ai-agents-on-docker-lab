@@ -2,7 +2,10 @@
 
 ## Context
 
-Describe the business capability owned by this service and its upstream and downstream dependencies.
+Solar Dispatch Lab schedules one-hour EV charging blocks from a synthetic forecast. A planner or
+Codex agent proposes a schedule inside a Docker sandbox. The operator runs the verifier on the
+host using the original forecast. The [dispatch model](DISPATCH.md) explains the calculation and
+the CLI contract.
 
 ## Layers
 
@@ -54,4 +57,23 @@ domain      -> no outer layer
 
 ## Diagrams
 
-Add C4 context/container diagrams and sequence diagrams for critical flows.
+```mermaid
+flowchart LR
+    Forecast["Synthetic forecast"]
+    subgraph Sandbox["Docker sandbox"]
+        Planner["Deterministic planner or Codex agent"]
+    end
+    subgraph Host["Operator's host"]
+        MCP["Read-only forecast MCP server"]
+        Verify["Independent verifier"]
+    end
+    Forecast -->|"Read-only mount (Shell)"| Planner
+    Forecast --> MCP
+    MCP -->|"forecast_day (Codex)"| Planner
+    Planner -->|"Proposal JSON"| Verify
+    Forecast -->|"Original forecast"| Verify
+```
+
+The domain module owns parsing, ranking, and verification. The dispatch entrypoint translates
+between JSON and the domain. The standalone MCP server exposes the synthetic fixture to the
+Codex workflow through the Docker Sandboxes gateway.

@@ -14,21 +14,21 @@ class Forecast:
     def parse(cls, data: object) -> "Forecast":
         """Validate a one-day forecast before computing incremental grid draw."""
         if not isinstance(data, dict):
-            raise ValueError("Previsão inválida")
+            raise ValueError("Invalid forecast")
         charge, slots, rows = data.get("charge_wh"), data.get("slots"), data.get("hours")
         if type(charge) is not int or charge <= 0 or type(slots) is not int:
-            raise ValueError("Carga e duração inválidas")
+            raise ValueError("Invalid charge per block or number of slots")
         if not isinstance(rows, list) or not 1 <= slots <= len(rows) <= 24:
-            raise ValueError("Quantidade de horas inválida")
+            raise ValueError("Invalid number of eligible hours")
         grid: dict[int, int] = {}
         for row in rows:
             if not isinstance(row, dict):
-                raise ValueError("Linha inválida")
+                raise ValueError("Invalid forecast row")
             hour, pv, home = row.get("hour"), row.get("pv_wh"), row.get("home_wh")
             if type(hour) is not int or not 0 <= hour < 24 or hour in grid:
-                raise ValueError("Hora inválida ou duplicada")
+                raise ValueError("Invalid or duplicate forecast hour")
             if type(pv) is not int or type(home) is not int or min(pv, home) < 0:
-                raise ValueError("Energia inválida")
+                raise ValueError("Invalid energy value")
             grid[hour] = max(0, charge - max(0, pv - home))
         return cls(grid, slots)
 
@@ -39,13 +39,13 @@ class Forecast:
     def verify(self, hours: object) -> int:
         """Check feasibility and optimality independently of the planner's sorting."""
         if not isinstance(hours, list) or len(hours) != self.slots:
-            raise ValueError("Duração incorreta")
+            raise ValueError("Incorrect number of charging hours")
         if any(type(h) is not int or h not in self.grid for h in hours):
-            raise ValueError("Hora fora da previsão")
+            raise ValueError("Hour outside the forecast")
         if len(set(hours)) != self.slots:
-            raise ValueError("Hora repetida")
+            raise ValueError("Duplicate charging hour")
         cost = sum(self.grid[h] for h in hours)
         # Replacing any selected block by a cheaper unused block improves the plan.
         if any(self.grid[a] > self.grid[b] for a in hours for b in self.grid if b not in hours):
-            raise ValueError("Existe horário com menor consumo da rede")
+            raise ValueError("A schedule with lower grid energy is available")
         return cost
