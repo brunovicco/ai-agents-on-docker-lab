@@ -2,6 +2,8 @@
 
 **English** · [Português do Brasil](README.pt-BR.md)
 
+> **Trust the verifier, not the agent.** A planner inside a Docker sandbox can only propose. The host decides, using a forecast the sandbox cannot change.
+
 Run a charging planner inside **Docker Sandboxes** and verify its proposal on the host. The sandbox gets a writable workspace and a read-only solar forecast. The host keeps the original forecast and makes the final decision.
 
 The exercise uses synthetic data. An electric vehicle needs **6 kWh**, and the planner must pick the two hours that draw the least energy from the grid.
@@ -19,6 +21,8 @@ The script shows the environment plan, creates a Shell microVM, and runs the kit
 ```json
 {"decision": "accepted", "hours": [10, 11], "grid_wh": 600}
 ```
+
+To keep a reviewable transcript of the run, use `bash lab/record.sh` afterwards. See [Record evidence](docs/SANDBOX-LAB.md#record-evidence).
 
 For first-time setup, including local network policy initialization, see the [Docker Sandboxes walkthrough](docs/SANDBOX-LAB.md#1-local-isolation-and-network-policy).
 

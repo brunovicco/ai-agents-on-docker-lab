@@ -30,6 +30,16 @@ The probe first verifies that the workspace is writable and the forecast cannot 
 
 When finished, use `sbx stop solar-dispatch` and `sbx env rm lab/sbxenv.yaml`. The host workspace remains available. Keep the sandbox and its SSH alias in place while the VS Code remote workspace is open.
 
+### Record evidence
+
+Most readers cannot run a microVM, so keep a transcript of what the sandbox did. After `bash lab/demo.sh sandbox`, record the sandbox proposal and its host verification, the sandbox configuration, the probe, and the policy log.
+
+```bash
+bash lab/record.sh
+```
+
+After the section 2 experiments, add sandbox names to capture their MCP mode, for example `bash lab/record.sh solar-codex solar-dispatch-codex`. The transcript goes to `docs/evidence/<date>-local.md`, or to the path in `SOLAR_EVIDENCE`. Each run replaces that file. The probe adds the sandbox-scoped deny rule again. Review the transcript before committing it, because `sbx` output can include usernames and host paths. For a terminal recording, wrap the demo with `asciinema rec docs/evidence/demo.cast -c "bash lab/demo.sh sandbox"`.
+
 ## 2. Codex, credentials, and MCP
 
 Register the forecast server from the repository root. The registration points to the synchronized Python environment and server code on the host, outside any sandbox workspace. Stdio servers run on the host with your privileges, so register only code you have reviewed.
