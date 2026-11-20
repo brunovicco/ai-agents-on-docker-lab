@@ -23,7 +23,7 @@ sbx env exec lab/sbxenv.yaml -- curl --max-time 5 -fsS -o /dev/null https://gith
 sbx policy log solar-dispatch
 ```
 
-The probe verifies that the workspace is writable and the forecast cannot be opened for writing. It then queries the policy for `github.com`. The query should exit with status 1 and name the kit's rule as the reason. The request from inside the sandbox should fail, and the log should show it blocked by the same rule. Run the request and log commands separately if your shell stops on errors. DNS errors and timeouts alone are insufficient evidence of enforcement.
+The probe verifies that the workspace is writable and the forecast cannot be opened for writing. It then queries the policy for `github.com`. The query should exit with status 1 and name the kit's rule as the reason. The request from inside the sandbox should fail, and the log should show it blocked by the same rule. With v0.54.0, the reason was `kit:solar-dispatch:deny` and the request returned HTTP 403 from the sandbox proxy. `sbx inspect` still reported `Network policy: global (local policy)`, and the environment plan did not list the kit's policy, so confirm kit rules with `sbx policy check` or the log. Run the request and log commands separately if your shell stops on errors. DNS errors and timeouts alone are insufficient evidence of enforcement.
 
 A deny in a kit wins over any allow. Add a sandbox-scoped allow and query again.
 
@@ -33,7 +33,7 @@ sbx policy check network --sandbox solar-dispatch github.com
 sbx policy rm network --sandbox solar-dispatch --resource github.com
 ```
 
-The query should still deny `github.com`. Remove the allow when you finish.
+The query should still deny `github.com`. With v0.54.0, it reported the kit's rule after the allow was added. Remove the allow when you finish.
 
 When finished, use `sbx stop solar-dispatch` and `sbx env rm lab/sbxenv.yaml`. The host workspace remains available. Keep the sandbox and its SSH alias in place while the VS Code remote workspace is open.
 
