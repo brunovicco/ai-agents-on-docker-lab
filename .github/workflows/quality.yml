@@ -47,3 +47,30 @@ jobs:
 
       - name: Build sandbox mixin
         run: docker buildx build -f lab/solar-kit/solar-kit.yaml lab/solar-kit
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Build application image
+        run: docker build -t solar-dispatch:ci .
+
+      - name: Run the image without network on a read-only filesystem and verify on the host
+        run: |
+          set -o pipefail
+          docker run --rm --read-only --network none solar-dispatch:ci |
+            PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
+
+      - name: Confirm the image runs as a non-root user
+        run: test "$(docker run --rm --entrypoint id solar-dispatch:ci -u)" != "0"
+
+      - name: Reject a suboptimal proposal inside the container
+        run: |
+          if echo '{"hours":[9,12]}' |
+            docker run --rm -i --read-only --network none solar-dispatch:ci verify lab/forecast/day.json; then
+            exit 1
+          fi
