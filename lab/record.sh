@@ -5,6 +5,10 @@
 # Review the transcript before committing it: sbx output can include usernames and host paths.
 set -uo pipefail
 cd "$(dirname "$0")/.."
+if ! command -v sbx >/dev/null; then
+  echo "sbx is not installed or not on PATH. See https://docs.docker.com/ai/sandboxes/" >&2
+  exit 1
+fi
 out=${SOLAR_EVIDENCE:-docs/evidence/$(date -u +%Y-%m-%d)-local.md}
 mkdir -p "$(dirname "$out")"
 
