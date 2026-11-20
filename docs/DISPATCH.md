@@ -27,6 +27,7 @@ The planner ranks blocks by grid energy, uses the earlier hour to break ties, an
 Both commands take the path to the forecast. The forecast provides `charge_wh`, `slots`, and an `hours` array of records with `hour`, `pv_wh`, and `home_wh`. It can contain at most 24 distinct hours, from 0 through 23.
 
 - `plan` writes exactly one JSON object with an `hours` array to stdout.
-- `verify` reads at most 4 KiB of proposal JSON from stdin. The object must contain only `hours`, with the requested number of distinct eligible hours. On acceptance, it writes a JSON object with `decision`, `hours`, and `grid_wh`. On rejection, it prints a diagnostic to stderr and exits with status 1.
+- `verify` reads at most 4 KiB of proposal JSON from stdin. The object must contain only `hours`, with the requested number of distinct eligible hours.
+- Both commands parse strict JSON. They reject duplicate keys at any depth, because parsers that keep the first or the last value would disagree about what the agent proposed. They also reject `NaN` and `Infinity`. On acceptance, it writes a JSON object with `decision`, `hours`, and `grid_wh`. On rejection, it prints a diagnostic to stderr and exits with status 1.
 
 See the [development guide](DEVELOPMENT.md) for the accepted and rejected smoke tests.
