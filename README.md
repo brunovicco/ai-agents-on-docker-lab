@@ -20,6 +20,7 @@ The task is small on purpose. A synthetic solar forecast lists four hours, and a
 | MCP gateway | Compares static and dynamic tool catalogs for Codex, with a decoy server | [2](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) |
 | Docker Model Runner | Serves `ai/qwen3:4b` on the host, with no API key | [5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) |
 | Docker Agent | Defines the local planner in YAML and runs it headless with a transcript | [5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) |
+| Compose `models` | Declares the model, the forecast server, and Docker Agent as one stack, with the agent in a read-only container | [5](docs/SANDBOX-LAB.md#the-same-planner-as-a-compose-stack) |
 | Docker Hardened Images | Runtime of the application and MCP server images | [3](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) |
 | Buildx, GHCR, and cosign | Publishes multi-arch images with SBOM and provenance, and the kit as an OCI artifact, all signed keyless | [3](docs/SANDBOX-LAB.md#published-images-and-attestations) |
 | Docker Scout | Compares the hardened runtime with the official image | [Supply chain](#supply-chain) |
@@ -62,7 +63,7 @@ It plans the sandbox environment, creates a Shell microVM, runs the kit's `solar
 {"decision": "accepted", "hours": [10, 11], "grid_wh": 600}
 ```
 
-The local model experiment needs Docker Model Runner and Docker Agent v1.147.0 or later. Run `bash lab/agent.sh` after the setup in [section 5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent). Record your own transcripts with `bash lab/record.sh`, described in [Record evidence](docs/SANDBOX-LAB.md#record-evidence).
+The local model experiment needs Docker Model Runner and Docker Agent v1.147.0 or later. Run `bash lab/agent.sh` after the setup in [section 5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent), or `bash lab/agent.sh compose` to run the whole stack, Docker Agent included, from `compose.yaml`. Record your own transcripts with `bash lab/record.sh`, described in [Record evidence](docs/SANDBOX-LAB.md#record-evidence).
 
 ## How it works
 
@@ -129,6 +130,7 @@ Dependabot keeps base image digests, actions, and Python dependencies current.
 | Path | Contents |
 | --- | --- |
 | `lab/` | Sandbox environment files, the kit, the Docker Agent planner, and the demo, probe, record, and agent scripts |
+| `compose.yaml` | The local-model planner as one stack: model, forecast server, and Docker Agent |
 | `integrations/` | Forecast and decoy MCP servers, their image, and the MCP checks |
 | `src/solar_dispatch/` | Planner, verifier, and the transcript evidence gate |
 | `docs/` | [Walkthrough](docs/SANDBOX-LAB.md), [architecture](docs/ARCHITECTURE.md), [dispatch model](docs/DISPATCH.md), and [evidence](docs/evidence/) |

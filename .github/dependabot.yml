@@ -21,6 +21,17 @@ updates:
       - dependency-name: python
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
+  # The Docker Agent image in compose.yaml, pinned by version and digest.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "compose"
+    groups:
+      compose-images:
+        patterns: ["*"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

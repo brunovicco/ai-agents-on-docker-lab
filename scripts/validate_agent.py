@@ -3,12 +3,14 @@
 Usage: python scripts/validate_agent.py SCHEMA_FILE [AGENT_FILE]
 
 SCHEMA_FILE is agent-schema.json from https://github.com/docker/docker-agent. CI pins it to a
-commit.
+commit. The script also checks that compose.yaml declares the same model and context size, so
+the host run and the Compose run use one model configuration.
 """
 
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 from jsonschema import validators
@@ -28,6 +30,19 @@ def main() -> None:
     if errors:
         raise SystemExit(1)
     print(f"{agent_file}: valid Docker Agent configuration")
+    check_compose(config, Path("compose.yaml"))
+
+
+def check_compose(config: dict[str, Any], compose_file: Path) -> None:
+    """Fail if the Compose model differs from the model the agent file names."""
+    model = config["models"]["local"]
+    compose = yaml.safe_load(compose_file.read_text())
+    declared = compose["models"]["planner"]
+    expected = (model["model"], model.get("provider_opts", {}).get("context_size"))
+    found = (declared["model"], declared.get("context_size"))
+    if expected != found:
+        raise SystemExit(f"{compose_file}: model {found} differs from the agent file {expected}")
+    print(f"{compose_file}: declares the agent's model {expected[0]} with context {expected[1]}")
 
 
 if __name__ == "__main__":

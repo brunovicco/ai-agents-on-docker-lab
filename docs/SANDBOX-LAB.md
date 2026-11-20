@@ -237,6 +237,25 @@ bash lab/agent.sh
 
 The agent's only tool is `forecast_day`. `lab/agent.sh` starts the MCP server image from section 2 as a running container that serves streamable HTTP on `127.0.0.1:8822` only, with a read-only filesystem, no capabilities, and an unprivileged user. The server rejects requests whose `Host` header is not loopback, which blocks DNS rebinding from a browser. Publishing a port rules out `--network none`, so this container keeps the default bridge network; it holds no credentials and reads only its bundled fixture. The agent connects with `allow_private_ips: true`, because Docker Agent refuses loopback and private addresses by default. The script removes the container when it exits. `lab/agent.sh` then runs the agent once with `--safety restricted`, which runs tools annotated as read-only and denies every other tool call. The agent answers with a JSON object as text, and the host verifier enforces its exact format.
 
+### The same planner as a Compose stack
+
+`compose.yaml` declares the whole planner: the model under the top-level `models` element, the forecast server, and Docker Agent itself as a container. It needs Docker Compose 2.38 or later and Model Runner enabled; Compose pulls and configures the model, so no separate `docker model pull` or local MCP build is needed.
+
+```bash
+bash lab/agent.sh compose
+```
+
+The differences from the host run are about isolation:
+
+| | `bash lab/agent.sh` | `bash lab/agent.sh compose` |
+| --- | --- | --- |
+| Docker Agent | Host binary, with the user's files and network | Pinned `docker/docker-agent` image, read-only, no capabilities, `/tmp` as its only writable path |
+| Agent file | Read from the repository | Mounted read-only, alone |
+| Forecast server | Local build, port published on host loopback | Published signed image, no published port |
+| Model | Pulled beforehand, context set by Docker Agent | Pulled and configured by Compose from `models:` |
+
+The forecast server listens on `127.0.0.1:8822` inside its container, and the agent container joins that network namespace (`network_mode: service:forecast-mcp`). The agent therefore reaches the server at the same URL as on the host, and nothing outside the pair can reach it. Inside a container, Docker Agent's `dmr` provider finds Model Runner at `model-runner.docker.internal` without configuration. The binding under the service's `models` also injects `PLANNER_URL` and `PLANNER_MODEL`, which the agent file does not need. CI checks that `compose.yaml` and the agent file name the same model and context size, and validates the Compose file. The Compose run has not been recorded yet: the server side was tested, the agent container was not.
+
 ### Check the process, not only the result
 
 With v1.163.0 and `ai/qwen3:4b`, the first accepted run was accepted for the wrong reason. The tool was missing, and the model guessed.
@@ -259,7 +278,7 @@ Qwen3 reasons before it answers. Neither `thinking_budget: none` nor Qwen3's `/n
 
 The agent instruction now states that the model does not know the forecast and that the host rejects answers without the tool call. A small local model can still skip the tool or miscalculate. Either way the host rejects the proposal, which is the point of the lab.
 
-CI validates `lab/agent/solar-planner.yaml` against the official Docker Agent JSON schema, pinned to a commit. Running the model needs Model Runner, so CI does not run the agent.
+CI validates `lab/agent/solar-planner.yaml` against the official Docker Agent JSON schema, pinned to a commit, and `compose.yaml` with `docker compose config`. Running the model needs Model Runner, so CI does not run the agent.
 
 ## 6. Further experiments
 

@@ -20,6 +20,7 @@ A tarefa é pequena de propósito. Uma previsão solar sintética lista quatro h
 | Gateway MCP | Compara catálogos de ferramentas estático e dinâmico para o Codex, com um servidor isca | [2](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) |
 | Docker Model Runner | Serve o `ai/qwen3:4b` no host, sem chave de API | [5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) |
 | Docker Agent | Define o planejador local em YAML e o executa sem interface, com transcript | [5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) |
+| Compose `models` | Declara o modelo, o servidor de previsão e o Docker Agent como uma única stack, com o agente num contêiner somente leitura | [5](docs/SANDBOX-LAB.md#the-same-planner-as-a-compose-stack) |
 | Docker Hardened Images | Runtime das imagens da aplicação e do servidor MCP | [3](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) |
 | Buildx, GHCR e cosign | Publica imagens multiarquitetura com SBOM e proveniência, e o kit como artefato OCI, todos assinados sem chave | [3](docs/SANDBOX-LAB.md#published-images-and-attestations) |
 | Docker Scout | Compara o runtime endurecido com a imagem oficial | [Cadeia de suprimentos](#cadeia-de-suprimentos) |
@@ -62,7 +63,7 @@ Ele planeja o ambiente do sandbox, cria uma microVM Shell, executa o `solar-plan
 {"decision": "accepted", "hours": [10, 11], "grid_wh": 600}
 ```
 
-O experimento com modelo local precisa do Docker Model Runner e do Docker Agent v1.147.0 ou posterior. Execute `bash lab/agent.sh` depois da configuração da [seção 5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent). Grave os seus próprios transcripts com `bash lab/record.sh`, descrito em [Record evidence](docs/SANDBOX-LAB.md#record-evidence).
+O experimento com modelo local precisa do Docker Model Runner e do Docker Agent v1.147.0 ou posterior. Execute `bash lab/agent.sh` depois da configuração da [seção 5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent), ou `bash lab/agent.sh compose` para subir a stack inteira, inclusive o Docker Agent, a partir do `compose.yaml`. Grave os seus próprios transcripts com `bash lab/record.sh`, descrito em [Record evidence](docs/SANDBOX-LAB.md#record-evidence).
 
 ## Como funciona
 
@@ -129,6 +130,7 @@ O `sbx env` e partes do Docker Agent são experimentais, então comandos e forma
 | Caminho | Conteúdo |
 | --- | --- |
 | `lab/` | Arquivos de ambiente do sandbox, o kit, o planejador do Docker Agent e os scripts de demo, probe, gravação e agente |
+| `compose.yaml` | O planejador com modelo local como uma stack: modelo, servidor de previsão e Docker Agent |
 | `integrations/` | Servidores MCP de previsão e isca, a imagem deles e as checagens MCP |
 | `src/solar_dispatch/` | Planejador, verificador e o gate de evidência do transcript |
 | `docs/` | [Roteiro](docs/SANDBOX-LAB.md), [arquitetura](docs/ARCHITECTURE.md), [modelo de despacho](docs/DISPATCH.md) e [evidências](docs/evidence/) |

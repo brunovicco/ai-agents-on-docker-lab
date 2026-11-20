@@ -56,6 +56,9 @@ jobs:
           uv run --no-project --with jsonschema==4.26.0 --with pyyaml==6.0.3 \
             python scripts/validate_kit.py "$RUNNER_TEMP/sandbox-kit-spec"
 
+      - name: Validate the Compose stack for the local-model planner
+        run: docker compose config --quiet
+
       - name: Validate the Docker Agent planner against the official schema
         env:
           AGENT_SCHEMA_COMMIT: 286653cdb996035b1b160d98010ca039cebb29dc

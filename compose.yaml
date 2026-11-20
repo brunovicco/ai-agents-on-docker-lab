@@ -1,0 +1,53 @@
+# The local-model planner as one Compose stack. Compose pulls and configures the model in Docker
+# Model Runner, the forecast tool runs from the published hardened image, and Docker Agent runs
+# in its own container instead of on the host. The host keeps the transcript and decides:
+# bash lab/agent.sh compose. See docs/SANDBOX-LAB.md section 5.
+name: solar-dispatch-lab
+
+models:
+  planner:
+    model: ai/qwen3:4b
+    context_size: 4096
+
+services:
+  forecast-mcp:
+    image: ${SOLAR_MCP_IMAGE:-ghcr.io/brunovicco/solar-forecast-mcp:main}
+    # Loopback only: no port is published, and only containers that join this network
+    # namespace reach the server, at the same URL the agent file uses on the host.
+    command: [--transport, streamable-http, --host, 127.0.0.1, --port, "8822"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('127.0.0.1', 8822), 2)"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  planner:
+    image: docker/docker-agent:1.163.0@sha256:ceacdce30f5c9ef04d46859acad49d03f3807825bbc6b54e2618e71f5536c11c
+    depends_on:
+      forecast-mcp:
+        condition: service_healthy
+    network_mode: service:forecast-mcp
+    # Binding the model makes the dependency explicit and injects PLANNER_URL and PLANNER_MODEL.
+    # Inside a container, Docker Agent's dmr provider finds the same Model Runner endpoint itself.
+    models: [planner]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    environment:
+      HOME: /tmp
+      TELEMETRY_ENABLED: "false"
+      DOCKER_AGENT_AUTO_UPDATE: "false"
+    volumes:
+      - ./lab/agent:/work:ro
+    command:
+      - run
+      - --exec
+      - --json
+      - --safety
+      - restricted
+      - solar-planner.yaml
+      - Plan the charging hours for the forecast.
