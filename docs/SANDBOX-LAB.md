@@ -205,7 +205,7 @@ docker build -f integrations/Dockerfile -t solar-forecast-mcp:dev .
 bash lab/agent.sh
 ```
 
-The agent's only tool is `forecast_day`. `lab/agent.sh` starts the MCP server image from section 2 as a running container that serves streamable HTTP on `127.0.0.1:8822` only, with a read-only filesystem, no capabilities, and an unprivileged user. The server rejects requests whose `Host` header is not loopback, which blocks DNS rebinding from a browser. Publishing a port rules out `--network none`, so this container keeps the default bridge network; it holds no credentials and reads only its bundled fixture. The agent connects with `allow_private_ips: true`, because Docker Agent refuses loopback and private addresses by default. The script removes the container when it exits. `lab/agent.sh` then runs the agent once with `--safety restricted`, which runs tools annotated as read-only and denies every other tool call. The agent returns its hours through structured output in tool mode, which validates the shape of the answer against a JSON schema.
+The agent's only tool is `forecast_day`. `lab/agent.sh` starts the MCP server image from section 2 as a running container that serves streamable HTTP on `127.0.0.1:8822` only, with a read-only filesystem, no capabilities, and an unprivileged user. The server rejects requests whose `Host` header is not loopback, which blocks DNS rebinding from a browser. Publishing a port rules out `--network none`, so this container keeps the default bridge network; it holds no credentials and reads only its bundled fixture. The agent connects with `allow_private_ips: true`, because Docker Agent refuses loopback and private addresses by default. The script removes the container when it exits. `lab/agent.sh` then runs the agent once with `--safety restricted`, which runs tools annotated as read-only and denies every other tool call. The agent answers with a JSON object as text, and the host verifier enforces its exact format.
 
 ### Check the process, not only the result
 
@@ -215,11 +215,15 @@ With v1.163.0 and `ai/qwen3:4b`, the first accepted run was accepted for the wro
 
 That first run was accepted with hours 10 and 11. Its transcript showed one tool call, to the internal `__structured_output__` tool, and none to `forecast_day`: the model never read the forecast, and its plausible guess happened to be optimal. A second run without the tool call proposed `{"hours": [12, 13, 14]}`, which the verifier would reject. The verifier judges the answer, so it cannot tell a lucky guess from a computed one.
 
-`lab/agent.sh` therefore keeps the agent's newline-delimited JSON transcript and passes it through an evidence gate on the host, `solar_dispatch.entrypoints.agent_evidence`, before the verifier. The gate accepts only when a `forecast_day` call precedes the final structured output, and then hands that output to the verifier. A guess is rejected with `The agent answered without reading the forecast through forecast_day`, and the script prints the transcript path. Set `SOLAR_AGENT_TRANSCRIPT` to keep the transcript at a chosen path. Run the gate on a saved transcript to check a past run.
+`lab/agent.sh` therefore keeps the agent's newline-delimited JSON transcript and passes it through an evidence gate on the host, `solar_dispatch.entrypoints.agent_evidence`, before the verifier. The gate takes the final answer, either the last structured output or the text written after the last tool result, accepts it only when a `forecast_day` call precedes it, and then hands it to the verifier. A guess is rejected with `The agent answered without reading the forecast through forecast_day`, and the script prints the transcript path. Set `SOLAR_AGENT_TRANSCRIPT` to keep the transcript at a chosen path. Run the gate on a saved transcript to check a past run.
 
 ```bash
 PYTHONPATH=src python3 -m solar_dispatch.entrypoints.agent_evidence < /tmp/solar-agent.ndjson
 ```
+
+### Structured output and reasoning with a local model
+
+The first configuration returned the answer through Docker Agent's structured output in tool mode. Once the tool was available, `ai/qwen3:4b` called `forecast_day` and then answered in plain text instead of calling the output tool. Docker Agent retried with a reminder, and Model Runner's llama.cpp rejected the following request with `HTTP 400: Cannot have 2 or more assistant messages at the end of the list`. The model also reasoned for about 12 minutes per run, and `thinking_budget: none` did not turn reasoning off through Model Runner. The planner therefore asks for a plain JSON answer, which the gate reads from the transcript, and ends its instruction with Qwen3's `/no_think` switch.
 
 The agent instruction now states that the model does not know the forecast and that the host rejects answers without the tool call. A small local model can still skip the tool or miscalculate. Either way the host rejects the proposal, which is the point of the lab.
 

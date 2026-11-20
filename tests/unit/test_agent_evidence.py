@@ -41,16 +41,53 @@ def test_uses_the_last_structured_output_after_a_retry() -> None:
     assert proposal_from_transcript(lines) == {"hours": [10, 11]}
 
 
+def choice(text: str) -> str:
+    return event("agent_choice", content=text)
+
+
+def test_accepts_a_text_answer_written_after_the_tool_result() -> None:
+    lines = transcript(
+        choice("Let me read the forecast."),
+        call("forecast_day"),
+        event("tool_call_response", tool_call_id="1"),
+        choice('{"hours": '),
+        choice("[10, 11]}"),
+    )
+    assert proposal_from_transcript(lines) == {"hours": [10, 11]}
+
+
+def test_accepts_one_fenced_json_block() -> None:
+    lines = transcript(
+        call("forecast_day"),
+        event("tool_call_response", tool_call_id="1"),
+        choice('```json\n{"hours": [10, 11]}\n```'),
+    )
+    assert proposal_from_transcript(lines) == {"hours": [10, 11]}
+
+
 @pytest.mark.parametrize(
     ("lines", "reason"),
     [
+        (transcript(choice(ANSWER)), "without reading the forecast"),
+        (
+            transcript(call("forecast_day"), event("tool_call_response"), choice("")),
+            "no final answer",
+        ),
+        (
+            transcript(
+                call("forecast_day"),
+                event("tool_call_response"),
+                choice("The best hours are 10 and 11."),
+            ),
+            "Expecting value",
+        ),
         # The run that motivated this gate: a correct-looking answer with no tool use.
         (transcript(call("__structured_output__", ANSWER)), "without reading the forecast"),
         (
             transcript(call("__structured_output__", ANSWER), call("forecast_day")),
             "without reading the forecast",
         ),
-        (transcript(call("forecast_day")), "no structured output"),
+        (transcript(call("forecast_day")), "no final answer"),
         (b'{"type": "tool_call"\n', "Invalid transcript line 1"),
         (transcript(event("tool_call", tool_call={"function": {"name": 7}})), "Malformed"),
         (

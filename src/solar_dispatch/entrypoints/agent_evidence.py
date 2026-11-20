@@ -1,14 +1,17 @@
 """Gate a Docker Agent proposal on evidence that the agent read the forecast through its tool.
 
 Reads the newline-delimited JSON transcript of `docker agent run --exec --json` from stdin.
-Accepts only when a `forecast_day` tool call precedes the final structured output, then writes
-that output as the proposal for `dispatch verify`. The verifier checks the result; this gate
-checks the process, so a correct guess made without reading the forecast is rejected.
+The final answer is the last structured output, if the agent produced one, or else the text the
+agent wrote after its last tool result. The gate accepts only when a `forecast_day` call precedes
+that answer, then writes the answer as the proposal for `dispatch verify`. The verifier checks
+the result; this gate checks the process, so a correct guess made without reading the forecast is
+rejected.
 """
 
 import argparse
 import json
 import sys
+from dataclasses import dataclass
 
 from solar_dispatch.entrypoints.dispatch import load_strict_json
 
@@ -17,9 +20,17 @@ OUTPUT_TOOL = "__structured_output__"
 FORECAST_TOOL = "forecast_day"
 
 
-def _tool_calls(transcript: bytes) -> list[tuple[str, str]]:
-    """Return (name, arguments) for each tool call event in transcript order."""
-    calls: list[tuple[str, str]] = []
+@dataclass(frozen=True)
+class _Event:
+    kind: str
+    tool: str = ""
+    arguments: str = ""
+    content: str = ""
+
+
+def _events(transcript: bytes) -> list[_Event]:
+    """Parse the transcript into the events the gate needs, in order."""
+    events: list[_Event] = []
     for number, line in enumerate(transcript.splitlines(), start=1):
         if not line.strip():
             continue
@@ -27,26 +38,49 @@ def _tool_calls(transcript: bytes) -> list[tuple[str, str]]:
             event = json.loads(line)
         except ValueError as exc:
             raise ValueError(f"Invalid transcript line {number}") from exc
-        if not isinstance(event, dict) or event.get("type") != "tool_call":
+        if not isinstance(event, dict):
             continue
-        function = (event.get("tool_call") or {}).get("function") or {}
-        name, arguments = function.get("name"), function.get("arguments", "")
-        if not isinstance(name, str) or not isinstance(arguments, str):
-            raise ValueError(f"Malformed tool call on transcript line {number}")
-        calls.append((name, arguments))
-    return calls
+        kind = event.get("type")
+        if kind == "tool_call":
+            function = (event.get("tool_call") or {}).get("function") or {}
+            name, arguments = function.get("name"), function.get("arguments", "")
+            if not isinstance(name, str) or not isinstance(arguments, str):
+                raise ValueError(f"Malformed tool call on transcript line {number}")
+            events.append(_Event("tool_call", tool=name, arguments=arguments))
+        elif kind == "tool_call_response":
+            events.append(_Event("tool_call_response"))
+        elif kind == "agent_choice" and isinstance(event.get("content"), str):
+            events.append(_Event("agent_choice", content=event["content"]))
+    return events
+
+
+def _strip_fence(text: str) -> str:
+    """Accept a single fenced code block around the answer, and nothing else."""
+    text = text.strip()
+    if text.startswith("```") and text.endswith("```") and text.count("```") == 2:
+        body = text[3:-3]
+        return body.removeprefix("json").strip()
+    return text
 
 
 def proposal_from_transcript(transcript: bytes) -> object:
-    """Return the final structured output if the forecast tool was called before it."""
-    calls = _tool_calls(transcript)
-    outputs = [index for index, (name, _) in enumerate(calls) if name == OUTPUT_TOOL]
-    if not outputs:
-        raise ValueError("The agent produced no structured output")
-    final = outputs[-1]
-    if not any(name.endswith(FORECAST_TOOL) for name, _ in calls[:final]):
+    """Return the final answer if the forecast tool was called before it."""
+    events = _events(transcript)
+    outputs = [i for i, e in enumerate(events) if e.kind == "tool_call" and e.tool == OUTPUT_TOOL]
+    if outputs:
+        final, answer = outputs[-1], events[outputs[-1]].arguments
+    else:
+        boundary = max(
+            (i for i, e in enumerate(events) if e.kind == "tool_call_response"), default=-1
+        )
+        answer = "".join(e.content for e in events[boundary + 1 :] if e.kind == "agent_choice")
+        if not answer.strip():
+            raise ValueError("The agent produced no final answer")
+        final = boundary + 1
+    called = any(e.kind == "tool_call" and e.tool.endswith(FORECAST_TOOL) for e in events[:final])
+    if not called:
         raise ValueError("The agent answered without reading the forecast through forecast_day")
-    return load_strict_json(calls[final][1])
+    return load_strict_json(_strip_fence(answer))
 
 
 def main() -> None:

@@ -39,7 +39,7 @@ flowchart TB
     MCP -->|"Gateway MCP (Codex)"| Planner
     MCP -->|"MCP via stdio"| Local["Agente com modelo local (Docker Agent + Model Runner)"]
     Planner -->|"Horários propostos em JSON"| Verify{"Proposta válida e ótima? (verificador no host)"}
-    Local -->|"Horários validados pelo schema"| Verify
+    Local -->|"Horários em JSON, após o gate de evidência"| Verify
     Forecast -->|"Dados originais"| Verify
     Verify -->|"Sim"| Accept["Aceita e informa o consumo da rede"]
     Verify -->|"Não"| Reject["Rejeita a proposta"]
