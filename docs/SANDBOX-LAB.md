@@ -193,7 +193,29 @@ sbx --cloud rm solar-cloud
 
 To inspect the declarative variant, run `sbx --cloud env plan lab/cloud.yaml`. Docker Cloud has separate storage for secrets, policies, and volumes. After a move, verify the destination policy and check a file saved in the image filesystem. Host mounts require explicit transfer. Files in memory-backed mounts such as `/tmp` in the cloud Shell sandbox stay behind. Published cloud ports receive external URLs. [Local and cloud differences](https://docs.docker.com/ai/sandboxes/cloud/local-vs-cloud/)
 
-## 5. Further experiments
+## 5. Local model through Docker Agent
+
+Docker Model Runner serves a model on the host, and Docker Agent defines the planner in `lab/agent/solar-planner.yaml`. No API key is involved. Docker Desktop must have Model Runner enabled and include the `docker agent` plugin. The agent uses the MCP server image from section 2.
+
+```bash
+docker model pull ai/qwen3:4b
+docker build -f integrations/Dockerfile -t solar-forecast-mcp:dev .
+bash lab/agent.sh
+```
+
+The agent's only tool is `forecast_day`, served by the containerized MCP server without network. `lab/agent.sh` runs the agent once with `--safety restricted`, which runs tools annotated as read-only and denies every other tool call. The agent returns its hours through structured output in tool mode, which validates the answer against a JSON schema before Docker Agent prints it. The schema checks only the shape of the answer. Whether the hours are optimal is the host verifier's decision, so a wrong answer from a small local model ends in a rejection, which is the point of the lab.
+
+To inspect the run, save the newline-delimited JSON transcript and look for the `forecast_day` call.
+
+```bash
+docker agent run --exec --json --safety restricted lab/agent/solar-planner.yaml \
+  "Plan the charging hours for the forecast." > /tmp/solar-agent.ndjson
+grep -c forecast_day /tmp/solar-agent.ndjson
+```
+
+CI validates `lab/agent/solar-planner.yaml` against the official Docker Agent JSON schema, pinned to a commit. Running the model needs Model Runner, so CI does not run the agent.
+
+## 6. Further experiments
 
 | Area | Experiment or inspection | What to observe |
 | --- | --- | --- |
@@ -204,6 +226,7 @@ To inspect the declarative variant, run `sbx --cloud env plan lab/cloud.yaml`. D
 | Hardware and other agents | Inspect resources inside the microVM and use `sbx run --help` for workload options | Check CPU and memory inside the guest, connect to the Wayland socket for display, and look for `/dev/kvm` before testing nested virtualization |
 | Volumes, templates, and migration | Run `sbx --cloud volume ls`, `sbx template ls`, and `sbx move --help` | Compare persistent storage, explicit transfer, and image snapshots |
 | Scheduling | Run `sbx --cloud schedule create shell --name solar-clock --cron '0 8 * * *' --timezone America/Sao_Paulo --enabled=false --command 'date -u'` | List the paused schedule with `sbx --cloud schedule ls` and remove it by ID. To schedule the forecast, provide the code and data in a cloud kit |
+| Docker Agent in a sandbox | Run `docker agent run --sandbox --exec --safety restricted lab/agent/solar-planner.yaml "Plan the charging hours for the forecast."` | The agent process moves into a Docker Sandboxes microVM. Check how it reaches Model Runner and the MCP server from the VM |
 | Operations and diagnostics | Run `sbx df`, `sbx tui`, and `sbx diagnose --help` | Inspect state, disk usage, and diagnostics |
 | Organization governance | In a pilot organization with AI Governance active and a license assigned to the test account, run `sbx policy refresh` and `sbx policy ls` | Look for `Governance: Managed by <org>`. Test an allowed and a blocked destination, confirm the rule source, and compare the results with the organization audit log. [Docker governance verification](https://docs.docker.com/ai/governance/organization/get-started/#step-8-verify-on-a-developer-machine) |
 | APIs, SDKs, editors, and integrations | [Docker Sandboxes documentation](https://docs.docker.com/ai/sandboxes/) | Check availability for your backend and product |

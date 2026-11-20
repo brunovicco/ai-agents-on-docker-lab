@@ -14,6 +14,10 @@
       "purpose": "publishes the images and the sandbox kit with SBOM and provenance attestations"
     },
     {
+      "id": "docker-model-runner",
+      "purpose": "serves the local ai/qwen3:4b model for the Docker Agent planner"
+    },
+    {
       "id": "openai",
       "purpose": "optional Codex provider"
     }

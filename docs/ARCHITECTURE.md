@@ -77,4 +77,6 @@ flowchart LR
 The domain module owns parsing, ranking, and verification. The dispatch entrypoint translates
 between JSON and the domain. The MCP server runs in its own container without network, on a read-only filesystem, and
 exposes the synthetic fixture to the Codex workflow through the Docker Sandboxes gateway. The
-planner's kit denies all runtime egress.
+planner's kit denies all runtime egress. A third planner, defined with Docker Agent and served
+by Docker Model Runner, reads the same MCP server and returns schema-checked hours to the same
+verifier.

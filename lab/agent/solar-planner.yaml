@@ -1,0 +1,54 @@
+#!/usr/bin/env docker agent run
+# Plan EV charging with a local model served by Docker Model Runner.
+# The agent's only tool is the read-only forecast MCP server, run in a container without
+# network. It returns its proposal through a schema-validated structured output, and the
+# host verifies that proposal against its own copy of the forecast.
+
+models:
+  local:
+    provider: dmr
+    model: ai/qwen3:4b
+    temperature: 0
+
+agents:
+  root:
+    model: local
+    description: Plans EV charging hours from a synthetic solar forecast
+    instruction: |
+      Call the forecast_day tool to read the synthetic forecast. Each listed hour can charge
+      the simulated vehicle with charge_wh watt-hours. Choose slots distinct hours. For each
+      hour, the solar surplus is max(0, pv_wh - home_wh) and the grid energy is
+      max(0, charge_wh - surplus). Minimize the total grid energy, then deliver only the
+      selected hours through the structured output tool.
+    toolsets:
+      - type: mcp
+        command: docker
+        args:
+          - run
+          - -i
+          - --rm
+          - --network
+          - none
+          - --read-only
+          - --cap-drop
+          - ALL
+          - --security-opt
+          - no-new-privileges
+          - solar-forecast-mcp:dev
+    structured_output:
+      mode: tool
+      name: charging_plan
+      description: The hours selected for charging
+      schema:
+        type: object
+        properties:
+          hours:
+            type: array
+            items:
+              type: integer
+              minimum: 0
+              maximum: 23
+            uniqueItems: true
+        required:
+          - hours
+        additionalProperties: false
