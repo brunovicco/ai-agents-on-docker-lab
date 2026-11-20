@@ -51,7 +51,7 @@ sbx mcp add solar-forecast --command "$PWD/.venv/bin/python" --args integrations
 sbx mcp inspect solar-forecast
 ```
 
-### Static MCP: one tool, nothing else
+### Static MCP: a fixed tool catalog
 
 Start Codex with the task workspace and a fixed tool catalog.
 
@@ -59,7 +59,7 @@ Start Codex with the task workspace and a fixed tool catalog.
 sbx run codex ./lab/desk --name solar-codex --static-mcp solar-forecast
 ```
 
-This session mounts only `lab/desk`. It has no forecast mount, so `forecast_day` is the only way to read the forecast. In static mode the gateway does not offer `mcp-find`, `mcp-add`, or `mcp-config-set`, so the agent cannot attach other registered servers. Ask Codex to follow `TASK.md` and approve the read-only tool call if prompted. In another terminal, confirm the mode and verify the proposal against the original forecast.
+This session mounts `lab/desk` and the read-only agent skills directory that `sbx` adds. It has no forecast mount, so `forecast_day` is the only way to read the forecast. In static mode the gateway does not offer `mcp-find`, `mcp-add`, or `mcp-config-set`, so the agent cannot discover or attach other registered servers. With v0.54.0, Codex listed `forecast_day` and two gateway tools, `mcp_exec` and `code_mode`. Its other MCP tools belong to the Codex client, not the gateway. Ask Codex to follow `TASK.md` and approve the read-only tool call if prompted. In another terminal, confirm the mode and verify the proposal against the original forecast.
 
 ```bash
 sbx inspect solar-codex
@@ -68,7 +68,15 @@ sbx exec solar-codex cat /tmp/solar-answer.json |
   PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
 ```
 
-The MCP fields of `sbx inspect` should report static mode with `solar-forecast` as the only connected server.
+The MCP fields of `sbx inspect` report static mode with `solar-forecast` as the only connected server. To test the boundary, write a malicious answer inside the sandbox and confirm that the host rejects it.
+
+```bash
+sbx exec solar-codex sh -c 'printf "%s" "{\"hours\":[9,12],\"hours\":[10,11]}" > /tmp/attack.json'
+sbx exec solar-codex cat /tmp/attack.json |
+  PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
+```
+
+The verifier exits with status 1 and reports `Duplicate JSON key`.
 
 ### Contrast: dynamic MCP
 
