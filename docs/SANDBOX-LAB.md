@@ -32,7 +32,7 @@ When finished, use `sbx stop solar-dispatch` and `sbx env rm lab/sbxenv.yaml`. T
 
 ### Record evidence
 
-Most readers cannot run a microVM, so keep a transcript of what the sandbox did. After `bash lab/demo.sh sandbox`, record the sandbox proposal and its host verification, the sandbox configuration, the probe, and the policy log.
+Most readers cannot run a microVM, so keep a transcript of what the sandbox did. After `bash lab/demo.sh sandbox`, record the sandbox proposal and its host verification, the sandbox configuration, the probe, a blocked request from inside the sandbox, and the policy log.
 
 ```bash
 bash lab/record.sh
