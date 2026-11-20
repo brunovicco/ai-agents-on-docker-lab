@@ -43,6 +43,17 @@ flowchart TB
     Verify -->|"No"| Reject["Reject the proposal"]
 ```
 
+## Supply chain
+
+Both images run on a Docker Hardened Image without a shell or package manager, as an unprivileged user. Docker Scout compared the base images on 2026-11-20 for linux/arm64. It evaluated the published tags, not the pinned digests. See the [evidence](docs/evidence/2026-11-20-p1b-supply-chain.md).
+
+| Runtime base | Vulnerabilities (C/H/M/L) | Fixable critical or high | Root user | Scout health |
+| --- | --- | --- | --- | --- |
+| `python:3.13-slim` | 0 / 11 / 8 / 34 | 8 | Yes | D (39%) |
+| `dhi.io/python:3.13` | 0 / 2 / 11 / 4 | 0 | No | A (94%) |
+
+The application image shrank from 218 MB to 133 MB. On every push to `main`, CI publishes the images with an SBOM and provenance, and the sandbox kit with its egress policy, to GitHub Container Registry.
+
 ## Extend the experiment
 
 | Experiment | What to look for |

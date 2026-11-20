@@ -43,6 +43,17 @@ flowchart TB
     Verify -->|"Não"| Reject["Rejeita a proposta"]
 ```
 
+## Cadeia de suprimentos
+
+As duas imagens rodam sobre uma Docker Hardened Image, sem shell nem gerenciador de pacotes, com um usuário sem privilégios. O Docker Scout comparou as imagens base em 20/11/2026 para linux/arm64, avaliando as tags publicadas, não os digests fixados. Veja a [evidência](docs/evidence/2026-11-20-p1b-supply-chain.md).
+
+| Base do runtime | Vulnerabilidades (C/H/M/L) | Críticas ou altas com correção | Usuário root | Saúde no Scout |
+| --- | --- | --- | --- | --- |
+| `python:3.13-slim` | 0 / 11 / 8 / 34 | 8 | Sim | D (39%) |
+| `dhi.io/python:3.13` | 0 / 2 / 11 / 4 | 0 | Não | A (94%) |
+
+A imagem da aplicação caiu de 218 MB para 133 MB. A cada push no `main`, o CI publica no GitHub Container Registry as imagens, com SBOM e proveniência, e o kit do sandbox, com a sua política de rede.
+
 ## Explore outras etapas
 
 | Experimento | O que observar |
