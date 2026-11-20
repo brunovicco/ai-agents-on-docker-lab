@@ -33,11 +33,11 @@ step "Sandbox proposal verified on the host" \
   "sbx env exec lab/sbxenv.yaml -- solar-plan | python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json" \
   propose_and_verify
 step "Sandbox configuration" "sbx inspect solar-dispatch" sbx inspect solar-dispatch
-step "Filesystem and network policy probe (the final policy check exits 1 for the expected denial)" \
+step "Filesystem and network policy probe (the policy check exits 1 when the kit denies github.com)" \
   "bash lab/probe.sh" bash lab/probe.sh
 step "Blocked request from inside the sandbox (expected to fail)" \
-  "sbx env exec lab/sbxenv.yaml -- curl --max-time 5 -fsS -o /dev/null https://example.com/" \
-  sbx env exec lab/sbxenv.yaml -- curl --max-time 5 -fsS -o /dev/null https://example.com/
+  "sbx env exec lab/sbxenv.yaml -- curl --max-time 5 -fsS -o /dev/null https://github.com/" \
+  sbx env exec lab/sbxenv.yaml -- curl --max-time 5 -fsS -o /dev/null https://github.com/
 step "Policy log" "sbx policy log solar-dispatch" sbx policy log solar-dispatch
 for name in "$@"; do
   step "MCP mode of $name" "sbx inspect $name" sbx inspect "$name"

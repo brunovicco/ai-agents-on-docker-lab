@@ -5,4 +5,4 @@ This sandbox plans electric vehicle charging from a synthetic solar forecast.
 - `solar-plan` prints a deterministic proposal as a JSON object with an `hours` array.
 - Proposals are advisory. The host verifies each one against its own copy of the forecast and
   makes the final decision.
-- The task needs no network access.
+- The kit denies all runtime network egress. The task needs none.
