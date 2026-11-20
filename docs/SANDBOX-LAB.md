@@ -195,9 +195,11 @@ To inspect the declarative variant, run `sbx --cloud env plan lab/cloud.yaml`. D
 
 ## 5. Local model through Docker Agent
 
-Docker Model Runner serves a model on the host, and Docker Agent defines the planner in `lab/agent/solar-planner.yaml`. No API key is involved. Docker Desktop must have Model Runner enabled and include the `docker agent` plugin. The agent uses the MCP server image from section 2.
+Docker Model Runner serves a model on the host, and Docker Agent defines the planner in `lab/agent/solar-planner.yaml`. No API key is involved. The script needs Docker Agent v1.147.0 or later, which added `--exec --last`, and Model Runner enabled. Docker Desktop updates bring newer Docker Agent releases. The script checks both before it runs. The agent uses the MCP server image from section 2.
 
 ```bash
+docker agent version
+docker desktop enable model-runner
 docker model pull ai/qwen3:4b
 docker build -f integrations/Dockerfile -t solar-forecast-mcp:dev .
 bash lab/agent.sh

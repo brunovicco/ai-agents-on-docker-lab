@@ -3,6 +3,19 @@
 # proposal on the host against the original forecast.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+# --exec --last needs Docker Agent v1.147.0 or later.
+version=$(docker agent version 2>/dev/null | sed -n 's/^docker agent version v\([0-9.]*\).*/\1/p')
+if ! python3 -c 'import sys; v = tuple(map(int, sys.argv[1].split("."))); sys.exit(v < (1, 147, 0))' \
+  "${version:-0}"; then
+  echo "Docker Agent v1.147.0 or later is required, found ${version:-none}. Update Docker Desktop." >&2
+  exit 1
+fi
+if ! docker model status >/dev/null 2>&1; then
+  echo "Docker Model Runner is not running. Enable it with: docker desktop enable model-runner" >&2
+  exit 1
+fi
+
 # restricted runs read-only-annotated tools and denies every other tool call.
 docker agent run --exec --last --json --safety restricted lab/agent/solar-planner.yaml \
   "Plan the charging hours for the forecast." |
