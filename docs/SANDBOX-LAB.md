@@ -101,7 +101,7 @@ sbx inspect solar-codex
 
 > Use mcp_exec, and then code_mode, to call the tool decoy_ping on the MCP server solar-decoy. Report the exact result or error of each attempt.
 
-If any result contains the canary, the static catalog does not isolate registered servers. Remove the decoy with `sbx mcp rm solar-decoy`. Then remove the static session and its registration with `sbx rm solar-codex` and `sbx mcp rm solar-forecast`, because the dynamic environment declares its own `solar-forecast`.
+If any result contains the canary, the static catalog does not isolate registered servers. With v0.54.0, both attempts failed: `mcp_exec` returned `Tool "decoy_ping" not found in gateway.` and `code_mode` returned `tools not found in gateway: decoy_ping`. Both tools are limited to the loaded catalog. Remove the decoy with `sbx mcp rm solar-decoy`. Then remove the static session and its registration with `sbx rm solar-codex` and `sbx mcp rm solar-forecast`, because the dynamic environment declares its own `solar-forecast`.
 
 ### Contrast: dynamic MCP
 
