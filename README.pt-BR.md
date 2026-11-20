@@ -49,7 +49,7 @@ flowchart TB
 | --- | --- |
 | [Sistema de arquivos e política de rede](docs/SANDBOX-LAB.md#1-local-isolation-and-network-policy) | Confirme que a área de trabalho é gravável e a previsão é somente leitura. Mostre que a política do kit, que nega toda saída de rede, bloqueia um host liberado pela política global, e identifique a regra no log. |
 | [Codex via MCP](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) | Dê ao Codex um catálogo MCP estático, valide a proposta no host, teste se ele alcança um servidor que não recebeu e compare com um gateway dinâmico. |
-| [Buildx e cadeia de suprimentos](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) | Compile o kit e a imagem da aplicação, sirva a previsão em loopback e exporte um arquivo OCI com SBOM e proveniência. |
+| [Buildx e cadeia de suprimentos](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) | Compile as imagens sobre um runtime Docker Hardened Image, sirva a previsão em loopback e inspecione o SBOM e a proveniência que o CI publica com as imagens e o kit. |
 | [Docker Cloud](docs/SANDBOX-LAB.md#4-cloud-execution-and-transfer) | Execute o planejador em um sandbox temporário na nuvem e valide o resultado no host. |
 
 A documentação técnica está em inglês.

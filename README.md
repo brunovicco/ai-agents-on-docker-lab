@@ -49,7 +49,7 @@ flowchart TB
 | --- | --- |
 | [Filesystem and network policy](docs/SANDBOX-LAB.md#1-local-isolation-and-network-policy) | Confirm the workspace is writable and the forecast is read-only. Show that the kit's deny-all egress policy blocks a host the global policy allows, and match the block to its log entry. |
 | [Codex through MCP](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) | Give Codex a fixed MCP tool catalog, verify its proposal on the host, test whether it can reach a server it was not given, and contrast it with a dynamic gateway. |
-| [Buildx and supply chain](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) | Build the sandbox kit and application image, serve the forecast on loopback, and export an OCI archive with SBOM and provenance. |
+| [Buildx and supply chain](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) | Build the images on a Docker Hardened Image runtime, serve the forecast on loopback, and inspect the SBOM and provenance that CI publishes with the images and the kit. |
 | [Docker Cloud](docs/SANDBOX-LAB.md#4-cloud-execution-and-transfer) | Run the planner in a short-lived cloud sandbox and verify the result on the host. |
 
 [Dispatch model](docs/DISPATCH.md) · [Architecture](docs/ARCHITECTURE.md) · [Governance](governance/README.md) · [Development and local smoke tests](docs/DEVELOPMENT.md)
