@@ -10,13 +10,18 @@ models:
     provider: dmr
     model: ai/qwen3:4b
     temperature: 0
+    provider_opts:
+      # The task uses about 2,200 tokens. A small engine context keeps the KV cache, and the
+      # memory it takes on a laptop, small.
+      context_size: 4096
 
 agents:
   root:
     model: local
     description: Plans EV charging hours from a synthetic solar forecast
     # /no_think is Qwen3's switch to skip reasoning: with reasoning a run took about 12 minutes,
-    # and thinking_budget: none did not turn it off through Model Runner.
+    # and thinking_budget: none did not turn it off through Model Runner. lab/agent.sh repeats
+    # it in the user message, where Qwen3 honors it more reliably.
     instruction: |
       You do not know the forecast values. Before you answer, call the forecast_day tool once
       and use only the numbers it returns. The host rejects any answer given without that call.
