@@ -192,8 +192,9 @@ jobs:
           test "$status" = "421"
 
       # A pinned base ages: Scout found fixable high vulnerabilities in a hardened digest a day
-      # after it was pinned. Fail while any fixable critical or high one remains in either image.
-      - name: Fail on fixable critical or high vulnerabilities in the application image
+      # after it was pinned, and the newest hardened base can still carry some until DHI ships
+      # the fix. Report everything fixable, and fail only on what this repository's layers add.
+      - name: Report fixable critical or high vulnerabilities in the application image, base included
         if: env.DHI_USERNAME != ''
         uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
         with:
@@ -201,12 +202,25 @@ jobs:
           image: local://solar-dispatch:ci
           only-fixed: true
           only-severities: critical,high
-          exit-code: true
           write-comment: false
           dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Fail on fixable critical or high vulnerabilities in the MCP server image
+      - name: Fail on fixable critical or high vulnerabilities the application image adds to its base
+        if: env.DHI_USERNAME != ''
+        uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
+        with:
+          command: cves
+          image: local://solar-dispatch:ci
+          only-fixed: true
+          only-severities: critical,high
+          write-comment: false
+          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
+          ignore-base: true
+          exit-code: true
+
+      - name: Report fixable critical or high vulnerabilities in the MCP server image, base included
         if: env.DHI_USERNAME != ''
         uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
         with:
@@ -214,10 +228,23 @@ jobs:
           image: local://solar-forecast-mcp:ci
           only-fixed: true
           only-severities: critical,high
-          exit-code: true
           write-comment: false
           dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Fail on fixable critical or high vulnerabilities the MCP server image adds to its base
+        if: env.DHI_USERNAME != ''
+        uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
+        with:
+          command: cves
+          image: local://solar-forecast-mcp:ci
+          only-fixed: true
+          only-severities: critical,high
+          write-comment: false
+          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
+          ignore-base: true
+          exit-code: true
 
       - name: Set up QEMU for arm64
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
