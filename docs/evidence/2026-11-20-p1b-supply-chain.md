@@ -60,3 +60,75 @@ Health score  A  (94%)
  ✓      │ No unapproved base images                   │    0 deviations
  ✓      │ Supply chain attestations                   │    0 deviations
 ```
+
+## Published image sizes after removing unused dependencies
+
+Measured 2026-11-21 by pulling each platform manifest of the published application image by digest
+on a Linux host. Before: `sha-bd54ba2`, with pydantic, pydantic-settings, and structlog installed.
+After: `sha-a9963ff`, standard library only.
+
+| Image | linux/arm64 | linux/amd64 | Compressed layers, arm64 |
+| --- | ---: | ---: | ---: |
+| `ghcr.io/brunovicco/solar-dispatch:sha-bd54ba2…` | 133.4 MB | 120.1 MB | 26.7 MB |
+| `ghcr.io/brunovicco/solar-dispatch:sha-a9963ff…` | 117.4 MB | 103.5 MB | 22.6 MB |
+
+The arm64 size before matches the 133 MB measured locally above.
+
+## Scout on the published image, 2026-11-21
+
+The earlier Scout runs evaluated base image tags. This one evaluated the published application
+image, built on the hardened digest pinned on 2026-11-20 (`ab678ca8…`).
+
+```text
+$ docker scout quickview ghcr.io/brunovicco/solar-dispatch:sha-a9963ff4958fdae819868b3c93d5a341c96e6606 --platform linux/arm64
+    ✓ SBOM obtained from attestation, 74 packages found
+    ✓ Provenance obtained from attestation
+
+ Target     │ ghcr.io/brunovicco/solar-dispatch:sha-a9963ff… │   0C   9H   20M   23L
+   digest   │ 506fb1b76afd                                    │
+ Base image │ dhi.io/python:3.13                              │
+
+Policy status FAILED (4/7 policies met)
+Health score C (61%)
+
+ ✓ │ Default non-root user                          │
+ ! │ Copyleft licensed packages found               │    57 packages
+ ! │ Fixable critical or high vulnerabilities found │   0C   3H   0M   0L
+ ✓ │ No high-profile vulnerabilities                │   0C   0H   0M   0L
+ ! │ Outdated base images found                     │
+ ✓ │ No unapproved base images                      │    0 deviations
+ ✓ │ Supply chain attestations                      │    0 deviations
+```
+
+The pinned digest had fallen behind within a day. Dependabot had updated the `python:3.13-slim`
+builder twice but never the hardened runtime: its digest sat in an `ARG` default, which Dependabot
+does not parse, on a registry Dependabot had no credentials for. The fix moves the digest onto a
+`FROM … AS hardened-runtime` line and gives Dependabot a `dhi.io` registry.
+
+## The newest hardened base, 2026-11-21
+
+Moving the pin to the current `dhi.io/python:3.13` (`sha256:e1469187…`) did not clear the findings.
+CI scanned both built images on it, linux/amd64:
+
+| Package | Fixable high | Fixed in |
+| --- | --- | --- |
+| glibc 2.41-12+deb13u4+dhi1 | CVE-2026-19499, CVE-2026-5435 | 2.41-12+deb13u5, not yet in a DHI build |
+| setuptools 70.3.0, in the base | CVE-2025-47273 | 78.1.1 |
+
+`docker scout quickview dhi.io/python:3.13` on linux/arm64 counted 2 fixable high for the base
+alone, with 42 DHI VEX exceptions applied; the scan of the built image counted 3.
+
+A gate on every fixable vulnerability would stay red until DHI ships the glibc fix. CI therefore
+reports each image's fixable critical and high vulnerabilities, base included, and fails only when
+`docker scout compare` against the pinned hardened base shows an increase. `--ignore-base` was tried
+first and failed: Scout could not identify the base of an image built with `docker build`.
+
+```text
+                     │ Analyzed Image             │ Comparison Image
+   Target            │ local://solar-dispatch:ci  │ registry://dhi.io/python:3.13
+     platform        │ linux/amd64                │ linux/amd64
+     size            │ 23 MB (+21 kB)             │ 23 MB
+     packages        │ 89 (+1)                    │ 88
+    Policy                                       Analyzed  Comparison  Change
+    No fixable critical or high vulnerabilities  ! 3       ! 3         No Change
+```

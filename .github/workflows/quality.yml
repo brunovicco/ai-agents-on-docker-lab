@@ -68,6 +68,24 @@ jobs:
           uv run --no-project --with jsonschema==4.26.0 --with pyyaml==6.0.3 \
             python scripts/validate_agent.py "$RUNNER_TEMP/agent-schema.json"
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: v3.1.4
+
+      - name: Verify the signature of the planner image the kit copies from
+        env:
+          IDENTITY: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/quality.yml@refs/heads/main
+        run: |
+          # The kit takes its planner from a published image; accept it only if this repository's
+          # publish job on main signed that exact digest.
+          ref=$(sed -n 's/^ *FROM ghcr\.io\/brunovicco\/solar-dispatch:[^@]*@\(sha256:[0-9a-f]*\) AS planner$/\1/p' \
+            lab/solar-kit/solar-kit.yaml)
+          test -n "$ref"
+          cosign verify "ghcr.io/brunovicco/solar-dispatch@$ref" --certificate-identity "$IDENTITY" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null
+          echo "Verified ghcr.io/brunovicco/solar-dispatch@$ref"
+
       - name: Compose the kit onto the pinned Shell workload and verify its proposal
         run: |
           set -o pipefail
@@ -172,6 +190,70 @@ jobs:
             -H 'Accept: application/json, text/event-stream' \
             -d '{"jsonrpc":"2.0","id":1,"method":"ping"}')
           test "$status" = "421"
+
+      # A pinned base ages: Scout found fixable high vulnerabilities in a hardened digest a day
+      # after it was pinned, and the newest hardened base can still carry some until DHI ships
+      # the fix. Report everything fixable, and fail only on what this repository's layers add,
+      # by comparing each image with the hardened base it is built on.
+      - name: Read the hardened base each image is built on
+        if: env.DHI_USERNAME != ''
+        run: |
+          base=$(sed -n 's/^FROM \(dhi\.io\/python:3\.13@sha256:[0-9a-f]*\) AS hardened-runtime$/\1/p' Dockerfile)
+          test -n "$base"
+          test "$base" = "$(sed -n 's/^FROM \(dhi\.io\/python:3\.13@sha256:[0-9a-f]*\) AS hardened-runtime$/\1/p' integrations/Dockerfile)"
+          echo "HARDENED_BASE=$base" >> "$GITHUB_ENV"
+
+      - name: Report fixable critical or high vulnerabilities in the application image, base included
+        if: env.DHI_USERNAME != ''
+        uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
+        with:
+          command: cves
+          image: local://solar-dispatch:ci
+          only-fixed: true
+          only-severities: critical,high
+          write-comment: false
+          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Fail if the application image adds fixable critical or high vulnerabilities to its base
+        if: env.DHI_USERNAME != ''
+        uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
+        with:
+          command: compare
+          image: local://solar-dispatch:ci
+          to: registry://${{ env.HARDENED_BASE }}
+          only-fixed: true
+          only-severities: critical,high
+          exit-on: vulnerability
+          write-comment: false
+          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Report fixable critical or high vulnerabilities in the MCP server image, base included
+        if: env.DHI_USERNAME != ''
+        uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
+        with:
+          command: cves
+          image: local://solar-forecast-mcp:ci
+          only-fixed: true
+          only-severities: critical,high
+          write-comment: false
+          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Fail if the MCP server image adds fixable critical or high vulnerabilities to its base
+        if: env.DHI_USERNAME != ''
+        uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
+        with:
+          command: compare
+          image: local://solar-forecast-mcp:ci
+          to: registry://${{ env.HARDENED_BASE }}
+          only-fixed: true
+          only-severities: critical,high
+          exit-on: vulnerability
+          write-comment: false
+          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up QEMU for arm64
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
