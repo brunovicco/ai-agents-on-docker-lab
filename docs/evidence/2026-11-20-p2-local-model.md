@@ -15,9 +15,16 @@ names, token counts, timings, and the host's decisions.
 | 4 | Same, `thinking_budget: none` | `forecast_day` | Same HTTP 400. The current gate rejects the transcript's text answer with `Extra data` | 12 min 21 s |
 | 5 | HTTP server, plain JSON answer | `forecast_day` | Gate passed, verifier accepted `[10, 11]` with 600 Wh | 6 min 11 s |
 | 6 | Same, engine context 4,096 tokens | `forecast_day` | Gate passed, verifier accepted `[10, 11]` with 600 Wh | 4 min 31 s |
+| 7 | `bash lab/agent.sh compose`: Docker Agent in the pinned `docker/docker-agent:1.163.0` container, model configured by Compose `models:` | `forecast_day` | Gate passed, verifier accepted `[10, 11]` with 600 Wh | 5 min 26 s |
 
 Runs 5 and 6 produced 1,665 and 1,807 reasoning events and 1,322 and 1,314 output tokens in the
 final model turn. The task used about 2,200 tokens of context.
+
+Run 7 produced 2,058 reasoning events and 11 answer events, with one `tool_call` and one
+`tool_call_response`. The forecast server and the agent shared one network namespace with no
+published port. The first Compose attempt failed before any model call: the image's Docker CLI
+has no `model` plugin, so Docker Agent reported `docker model runner is not available` until
+`MODEL_RUNNER_HOST` was set.
 
 ## Why the first runs had no tool
 

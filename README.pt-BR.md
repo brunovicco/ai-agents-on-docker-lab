@@ -8,6 +8,8 @@ Um laboratório prático das ferramentas do Docker para agentes de IA: **Docker 
 
 > **Confie no verificador, não no agente.** Um planejador só pode propor. O host decide, usando dados que o planejador não consegue alterar e evidências de como a resposta foi produzida.
 
+![O planejador propõe num Docker Sandbox, o host verifica, o kit bloqueia a saída de rede e um plano pior é rejeitado](docs/assets/sandbox-demo.gif)
+
 A tarefa é pequena de propósito. Uma previsão solar sintética lista quatro horas, e um veículo elétrico precisa de dois blocos de recarga de uma hora. Três planejadores propõem as horas que puxam menos energia da rede: um script determinístico e o Codex dentro de sandboxes Docker, e um modelo local via Docker Agent. Um único verificador no host aceita ou rejeita cada proposta.
 
 ## Recursos do Docker no laboratório
@@ -36,6 +38,8 @@ A tarefa é pequena de propósito. Uma previsão solar sintética lista quatro h
 6. **O Docker Agent espera 30 segundos por turno pelas ferramentas.** Um servidor MCP stdio iniciado por sessão com `docker run` levou cerca de 44 segundos dentro do Docker Agent, e o modelo rodou sem a ferramenta. O mesmo handshake levou menos de 2 segundos com o cliente MCP em Python. Um container em execução servindo HTTP no loopback resolveu. [Roteiro](docs/SANDBOX-LAB.md#check-the-process-not-only-the-result)
 7. **Modelos locais têm limites práticos.** A saída estruturada em modo ferramenta recebeu `HTTP 400` do llama.cpp do Model Runner, e o raciocínio não pôde ser desligado. Num MacBook Air sem ventoinha, cada execução levou de 4,5 a 6 minutos enquanto o macOS estrangulava o chip. [Roteiro](docs/SANDBOX-LAB.md#structured-output-and-reasoning-with-a-local-model)
 8. **O runtime endurecido eliminou todas as vulnerabilidades críticas ou altas com correção disponível** e reduziu a imagem da aplicação de 218 MB para 133 MB. Veja [Cadeia de suprimentos](#cadeia-de-suprimentos).
+9. **Um kit pode declarar o que precisa do workload.** O kit leva o próprio planejador e declara `requires: ["deb/python-3.14"]`, que o workload Shell fixado publica. O `sbx` v0.54.0 compôs os dois, e o resolvedor de referência da spec rejeitou o kit num workload sem esse Python. O sandbox não monta mais o repositório. [Roteiro](docs/SANDBOX-LAB.md#a-self-contained-kit)
+10. **O agente também pode rodar isolado.** A partir do `compose.yaml`, o Docker Agent rodou num contêiner somente leitura e sem capabilities, compartilhando o namespace de rede com o servidor de previsão e sem publicar porta, e a resposta foi aceita depois de uma chamada a `forecast_day`. O Docker CLI da imagem não tem o plugin `model`, então o agente precisa de `MODEL_RUNNER_HOST` para encontrar o Model Runner. [Roteiro](docs/SANDBOX-LAB.md#the-same-planner-as-a-compose-stack)
 
 ## Início rápido
 

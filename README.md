@@ -8,6 +8,8 @@ A hands-on lab of Docker's tooling for AI agents: **Docker Sandboxes, sandbox ki
 
 > **Trust the verifier, not the agent.** A planner can only propose. The host decides, using data the planner cannot change and evidence of how the answer was produced.
 
+![The planner proposes in a Docker Sandbox, the host verifies, the kit blocks egress, and a worse schedule is rejected](docs/assets/sandbox-demo.gif)
+
 The task is small on purpose. A synthetic solar forecast lists four hours, and an electric vehicle needs two one-hour charging blocks. Three planners propose the hours that draw the least energy from the grid: a deterministic script and Codex inside Docker sandboxes, and a local model through Docker Agent. One verifier on the host accepts or rejects every proposal.
 
 ## Docker features in the lab
@@ -36,6 +38,8 @@ The task is small on purpose. A synthetic solar forecast lists four hours, and a
 6. **Docker Agent waits 30 seconds per turn for its tools.** A stdio MCP server started per session with `docker run` took about 44 seconds under Docker Agent, so the model ran without the tool. The same handshake took under 2 seconds from the Python MCP client. A running container that serves HTTP on loopback fixed it. [Walkthrough](docs/SANDBOX-LAB.md#check-the-process-not-only-the-result)
 7. **Local models have practical limits.** Tool-mode structured output hit `HTTP 400` from Model Runner's llama.cpp, and reasoning could not be turned off. On a fanless MacBook Air a run took 4.5 to 6 minutes while macOS throttled the chip. [Walkthrough](docs/SANDBOX-LAB.md#structured-output-and-reasoning-with-a-local-model)
 8. **The hardened runtime removed every fixable critical or high vulnerability** and shrank the application image from 218 MB to 133 MB. See [Supply chain](#supply-chain).
+9. **A kit can declare what it needs from the workload.** The kit carries its own planner and declares `requires: ["deb/python-3.14"]`, which the pinned Shell workload publishes. `sbx` v0.54.0 composed the two, and the spec's reference resolver rejected the kit on a workload without that Python. The sandbox no longer mounts the repository. [Walkthrough](docs/SANDBOX-LAB.md#a-self-contained-kit)
+10. **The agent can run contained too.** From `compose.yaml`, Docker Agent ran in a read-only container without capabilities, sharing a network namespace with the forecast server and publishing no port, and its answer was accepted after a `forecast_day` call. The image's Docker CLI lacks the `model` plugin, so the agent needs `MODEL_RUNNER_HOST` to find Model Runner. [Walkthrough](docs/SANDBOX-LAB.md#the-same-planner-as-a-compose-stack)
 
 ## Quick start
 
