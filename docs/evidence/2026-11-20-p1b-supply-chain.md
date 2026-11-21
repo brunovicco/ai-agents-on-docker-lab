@@ -119,9 +119,24 @@ CI scanned both built images on it, linux/amd64:
 alone, with 42 DHI VEX exceptions applied; the scan of the built image counted 3.
 
 A gate on every fixable vulnerability would stay red until DHI ships the glibc fix. CI therefore
-reports each image's fixable critical and high vulnerabilities, base included, and fails only when
-`docker scout compare` against the pinned hardened base shows an increase. `--ignore-base` was tried
-first and failed: Scout could not identify the base of an image built with `docker build`.
+reports each image's fixable critical and high vulnerabilities, base included, in the job summary,
+and fails only on CVE IDs that an image has and its pinned hardened base does not. The base is
+pulled and scanned from the local store like the images, so both sides get the same VEX treatment.
+The CI run on 2026-11-21 printed `solar-dispatch:ci adds none; 3 come from the hardened base` and
+the same for the MCP image.
+
+Three earlier designs failed, each for a reason worth knowing:
+
+- `--ignore-base` stopped with `no base image could be identified`: Scout cannot attribute layers
+  of an image built with `docker build`, which carries no provenance.
+- `docker/scout-action` downloads its 187 MB binary from the GitHub API asset URL without a token,
+  once per step. The anonymous request returned HTTP 403 on two runs. CI now runs the
+  `docker/scout-cli` image, pinned by digest, which also needs a writable Docker config directory
+  and `/tmp`.
+- `docker scout compare --exit-on vulnerability` reported two vulnerabilities added where none
+  were. It moved the glibc CVEs between the `glibc` and `libc6` packages, and the base, read from
+  the registry, got DHI VEX statements that the local image did not. Its policy table, below, shows
+  no change.
 
 ```text
                      │ Analyzed Image             │ Comparison Image

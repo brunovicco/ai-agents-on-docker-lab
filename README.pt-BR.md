@@ -1,10 +1,10 @@
-# Solar Dispatch Lab
+# AI Agents on Docker Lab
 
 [English](README.md) · **Português do Brasil**
 
-[![quality](https://github.com/brunovicco/solar-dispatch-lab/actions/workflows/quality.yml/badge.svg)](https://github.com/brunovicco/solar-dispatch-lab/actions/workflows/quality.yml)
+[![quality](https://github.com/brunovicco/ai-agents-on-docker-lab/actions/workflows/quality.yml/badge.svg)](https://github.com/brunovicco/ai-agents-on-docker-lab/actions/workflows/quality.yml)
 
-Um laboratório prático das ferramentas do Docker para agentes de IA: **Docker Sandboxes, kits de sandbox, o gateway MCP, Docker Model Runner, Docker Agent, Docker Hardened Images e atestações do Buildx**. Cada descoberta abaixo foi medida com as versões listadas e aponta para a seção do roteiro ou para o transcript gravado.
+Um laboratório prático das ferramentas do Docker para agentes de IA, construído em torno de uma tarefa pequena, planejar quando carregar um veículo elétrico com energia solar: **Docker Sandboxes, kits de sandbox, o gateway MCP, Docker Model Runner, Docker Agent, Docker Hardened Images e atestações do Buildx**. Cada descoberta abaixo foi medida com as versões listadas e aponta para a seção do roteiro ou para o transcript gravado.
 
 > **Confie no verificador, não no agente.** Um planejador só pode propor. O host decide, usando dados que o planejador não consegue alterar e evidências de como a resposta foi produzida.
 
@@ -52,7 +52,7 @@ bash lab/demo.sh local
 A imagem publicada só precisa do Docker, em amd64 ou arm64:
 
 ```bash
-docker run --rm --read-only --network none ghcr.io/brunovicco/solar-dispatch:main
+docker run --rm --read-only --network none ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch:main
 ```
 
 O experimento com sandbox precisa do CLI `sbx`, autenticado, numa máquina com suporte a virtualização local:
@@ -103,15 +103,15 @@ A cada push no `main`, o CI publica no GitHub Container Registry, para amd64 e a
 
 | Pacote | Conteúdo |
 | --- | --- |
-| `ghcr.io/brunovicco/solar-dispatch` | CLI do planejador e do verificador, com SBOM e proveniência |
-| `ghcr.io/brunovicco/solar-forecast-mcp` | Servidores MCP de previsão (somente leitura) e isca, com SBOM e proveniência |
-| `ghcr.io/brunovicco/solar-kit` | Kit do sandbox, com a política que nega saída de rede nas anotações do manifest |
+| `ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch` | CLI do planejador e do verificador, com SBOM e proveniência |
+| `ghcr.io/brunovicco/ai-agents-on-docker-lab/forecast-mcp` | Servidores MCP de previsão (somente leitura) e isca, com SBOM e proveniência |
+| `ghcr.io/brunovicco/ai-agents-on-docker-lab/kit` | Kit do sandbox, com a política que nega saída de rede nas anotações do manifest |
 
 Cada imagem e o kit são assinados por digest com cosign sem chave (keyless), vinculados ao workflow `quality` na `main`:
 
 ```bash
-cosign verify ghcr.io/brunovicco/solar-dispatch:main \
-  --certificate-identity https://github.com/brunovicco/solar-dispatch-lab/.github/workflows/quality.yml@refs/heads/main \
+cosign verify ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch:main \
+  --certificate-identity https://github.com/brunovicco/ai-agents-on-docker-lab/.github/workflows/quality.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 

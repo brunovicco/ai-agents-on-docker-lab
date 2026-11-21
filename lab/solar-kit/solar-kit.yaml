@@ -4,7 +4,7 @@ kind: mixin
 displayName: Solar Dispatch
 description: Compute an EV charging proposal from the mounted forecast
 version: 0.2.0
-sourceUrl: https://github.com/brunovicco/solar-dispatch-lab
+sourceUrl: https://github.com/brunovicco/ai-agents-on-docker-lab
 licenses: [MIT]
 provides: ["io.github.brunovicco/solar-plan"]
 # The planner runs on the workload's Python. Debian ships it as the python-3.14 package, which

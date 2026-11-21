@@ -2,7 +2,7 @@
 # Model Runner, the forecast tool runs from the published hardened image, and Docker Agent runs
 # in its own container instead of on the host. The host keeps the transcript and decides:
 # bash lab/agent.sh compose. See docs/SANDBOX-LAB.md section 5.
-name: solar-dispatch-lab
+name: ai-agents-on-docker-lab
 
 models:
   planner:
@@ -11,7 +11,7 @@ models:
 
 services:
   forecast-mcp:
-    image: ${SOLAR_MCP_IMAGE:-ghcr.io/brunovicco/solar-forecast-mcp:main}
+    image: ${SOLAR_MCP_IMAGE:-ghcr.io/brunovicco/ai-agents-on-docker-lab/forecast-mcp:main}
     # Loopback only: no port is published, and only containers that join this network
     # namespace reach the server, at the same URL the agent file uses on the host.
     command: [--transport, streamable-http, --host, 127.0.0.1, --port, "8822"]

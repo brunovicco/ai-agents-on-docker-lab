@@ -167,30 +167,30 @@ docker run --rm --read-only --network none --entrypoint solar-plan \
   PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
 ```
 
-When the planner changes, merge it so CI publishes and signs it, then move the `FROM ghcr.io/brunovicco/solar-dispatch` pin in the kit to the new `sha-<commit>` digest. An unsigned digest, or one signed by another workflow or branch, fails the check.
+When the planner changes, merge it so CI publishes and signs it, then move the `FROM ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch` pin in the kit to the new `sha-<commit>` digest. An unsigned digest, or one signed by another workflow or branch, fails the check.
 
 ### Published images and attestations
 
 On every push to `main`, CI publishes the application image, the MCP server image, and the sandbox kit to GitHub Container Registry for `linux/amd64` and `linux/arm64`, so they run natively on Apple silicon. The images carry an SBOM and maximal provenance from Buildx. The kit keeps its v3 descriptor, including the deny-all egress policy, in the manifest annotations.
 
 ```bash
-docker buildx imagetools inspect ghcr.io/brunovicco/solar-dispatch:main --format '{{json .SBOM}}'
-docker buildx imagetools inspect ghcr.io/brunovicco/solar-dispatch:main --format '{{json .Provenance}}'
-docker buildx imagetools inspect ghcr.io/brunovicco/solar-forecast-mcp:main
-docker buildx imagetools inspect ghcr.io/brunovicco/solar-kit:main --raw
+docker buildx imagetools inspect ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch:main --format '{{json .SBOM}}'
+docker buildx imagetools inspect ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch:main --format '{{json .Provenance}}'
+docker buildx imagetools inspect ghcr.io/brunovicco/ai-agents-on-docker-lab/forecast-mcp:main
+docker buildx imagetools inspect ghcr.io/brunovicco/ai-agents-on-docker-lab/kit:main --raw
 ```
 
 CI then signs each image and the kit by digest with keyless cosign. The certificate binds the signature to this repository's `quality` workflow on `main`, and the signature is logged in the public Sigstore transparency log. CI verifies all three signatures before the job ends. To check one yourself with [cosign](https://docs.sigstore.dev/cosign/system_config/installation/):
 
 ```bash
-cosign verify ghcr.io/brunovicco/solar-dispatch:main \
-  --certificate-identity https://github.com/brunovicco/solar-dispatch-lab/.github/workflows/quality.yml@refs/heads/main \
+cosign verify ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch:main \
+  --certificate-identity https://github.com/brunovicco/ai-agents-on-docker-lab/.github/workflows/quality.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
 A signature made by another workflow, on another branch, or in a fork does not match that identity, so the command fails for it.
 
-Each build is also tagged `sha-<commit>`. To run the published kit instead of the local source, replace `source: ./solar-kit` in `lab/sbxenv.yaml` with `ghcr.io/brunovicco/solar-kit` pinned by digest. `sbx` accepts remote kits only from sources listed in `kit.allowedSources`, so add `ghcr.io/brunovicco/` there first.
+Each build is also tagged `sha-<commit>`. To run the published kit instead of the local source, replace `source: ./solar-kit` in `lab/sbxenv.yaml` with `ghcr.io/brunovicco/ai-agents-on-docker-lab/kit` pinned by digest. `sbx` accepts remote kits only from sources listed in `kit.allowedSources`, so add `ghcr.io/brunovicco/` there first.
 
 ### Docker Hardened Images
 

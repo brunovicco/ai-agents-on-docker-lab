@@ -75,16 +75,18 @@ jobs:
 
       - name: Verify the signature of the planner image the kit copies from
         env:
-          IDENTITY: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/quality.yml@refs/heads/main
+          # Signatures made before the repository was renamed carry its former name. Accept the
+          # former name only until the kit is pinned to an image published under the new one.
+          IDENTITY: ^${{ github.server_url }}/brunovicco/(ai-agents-on-docker-lab|solar-dispatch-lab)/\.github/workflows/quality\.yml@refs/heads/main$
         run: |
           # The kit takes its planner from a published image; accept it only if this repository's
           # publish job on main signed that exact digest.
-          ref=$(sed -n 's/^ *FROM ghcr\.io\/brunovicco\/solar-dispatch:[^@]*@\(sha256:[0-9a-f]*\) AS planner$/\1/p' \
+          image=$(sed -n 's/^ *FROM \(ghcr\.io\/brunovicco\/[^:]*\):[^@]*@\(sha256:[0-9a-f]*\) AS planner$/\1@\2/p' \
             lab/solar-kit/solar-kit.yaml)
-          test -n "$ref"
-          cosign verify "ghcr.io/brunovicco/solar-dispatch@$ref" --certificate-identity "$IDENTITY" \
+          test -n "$image"
+          cosign verify "$image" --certificate-identity-regexp "$IDENTITY" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null
-          echo "Verified ghcr.io/brunovicco/solar-dispatch@$ref"
+          echo "Verified $image"
 
       - name: Compose the kit onto the pinned Shell workload and verify its proposal
         run: |
@@ -203,57 +205,52 @@ jobs:
           test "$base" = "$(sed -n 's/^FROM \(dhi\.io\/python:3\.13@sha256:[0-9a-f]*\) AS hardened-runtime$/\1/p' integrations/Dockerfile)"
           echo "HARDENED_BASE=$base" >> "$GITHUB_ENV"
 
-      - name: Report fixable critical or high vulnerabilities in the application image, base included
+      # The Scout CLI runs from its image, pinned by digest. docker/scout-action downloads a 187 MB
+      # binary from the GitHub API without a token on every step, which hit HTTP 403 twice.
+      - name: Report fixable vulnerabilities, and fail on any an image adds to its base
         if: env.DHI_USERNAME != ''
-        uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
-        with:
-          command: cves
-          image: local://solar-dispatch:ci
-          only-fixed: true
-          only-severities: critical,high
-          write-comment: false
-          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Fail if the application image adds fixable critical or high vulnerabilities to its base
-        if: env.DHI_USERNAME != ''
-        uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
-        with:
-          command: compare
-          image: local://solar-dispatch:ci
-          to: registry://${{ env.HARDENED_BASE }}
-          only-fixed: true
-          only-severities: critical,high
-          exit-on: vulnerability
-          write-comment: false
-          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Report fixable critical or high vulnerabilities in the MCP server image, base included
-        if: env.DHI_USERNAME != ''
-        uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
-        with:
-          command: cves
-          image: local://solar-forecast-mcp:ci
-          only-fixed: true
-          only-severities: critical,high
-          write-comment: false
-          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Fail if the MCP server image adds fixable critical or high vulnerabilities to its base
-        if: env.DHI_USERNAME != ''
-        uses: docker/scout-action@b265cd48f8a1451d2680815b3e8dc4ed65ee16e7 # v1.30.0
-        with:
-          command: compare
-          image: local://solar-forecast-mcp:ci
-          to: registry://${{ env.HARDENED_BASE }}
-          only-fixed: true
-          only-severities: critical,high
-          exit-on: vulnerability
-          write-comment: false
-          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
+        env:
+          DOCKER_SCOUT_HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_SCOUT_HUB_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          SCOUT: docker.io/docker/scout-cli:1.30.0@sha256:01f7e63d8ee0668b2c19f09920d7e7eff8d3e507ca931df2b8c00ae19b71d588
+        run: |
+          # Local images come through the read-only socket. Registry credentials, for the
+          # hardened base on dhi.io, come from a copy of the Docker config the login step wrote:
+          # Scout keeps its index next to the config, so the directory must be writable.
+          config=$(mktemp -d)
+          trap 'rm -rf "$config"' EXIT
+          cp "$HOME/.docker/config.json" "$config/config.json"
+          scout() {
+            docker run --rm --user "$(id -u):$(stat -c %g /var/run/docker.sock)" --tmpfs /tmp:mode=1777 \
+              -e HOME=/scout -e DOCKER_CONFIG=/scout -e DOCKER_SCOUT_HUB_USER -e DOCKER_SCOUT_HUB_PASSWORD \
+              -v "$config:/scout" -v /var/run/docker.sock:/var/run/docker.sock:ro "$SCOUT" "$@"
+          }
+          # Scan the hardened base the same way as the images, from the local store, so both
+          # sides get the same VEX treatment. Compare CVE IDs: package attribution can move
+          # between binary packages of one source, such as glibc and libc6.
+          set -o pipefail
+          docker pull -q "$HARDENED_BASE" >/dev/null
+          fixable_ids() {
+            scout cves "local://$1" --only-fixed --only-severity critical,high --format sarif \
+              --output "/scout/$2.sarif" >/dev/null
+            jq -r '.runs[].results[].ruleId' "$config/$2.sarif" | LC_ALL=C sort -u
+          }
+          fixable_ids "$HARDENED_BASE" base > "$config/base.ids"
+          status=0
+          for image in solar-dispatch:ci solar-forecast-mcp:ci; do
+            echo "## $image" >> "$GITHUB_STEP_SUMMARY"
+            scout cves "local://$image" --only-fixed --only-severity critical,high --format markdown |
+              tee -a "$GITHUB_STEP_SUMMARY"
+            fixable_ids "$image" "${image%%:*}" > "$config/image.ids"
+            added=$(LC_ALL=C comm -13 "$config/base.ids" "$config/image.ids" | paste -sd ' ' -)
+            if [ -n "$added" ]; then
+              echo "::error::$image adds fixable critical or high vulnerabilities to its base: $added"
+              status=1
+            else
+              echo "$image adds none; $(wc -l < "$config/image.ids") come from the hardened base."
+            fi
+          done
+          exit "$status"
 
       - name: Set up QEMU for arm64
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
@@ -321,8 +318,8 @@ jobs:
           sbom: true
           provenance: mode=max
           tags: |
-            ghcr.io/brunovicco/solar-dispatch:main
-            ghcr.io/brunovicco/solar-dispatch:sha-${{ github.sha }}
+            ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch:main
+            ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -339,8 +336,8 @@ jobs:
           sbom: true
           provenance: mode=max
           tags: |
-            ghcr.io/brunovicco/solar-forecast-mcp:main
-            ghcr.io/brunovicco/solar-forecast-mcp:sha-${{ github.sha }}
+            ghcr.io/brunovicco/ai-agents-on-docker-lab/forecast-mcp:main
+            ghcr.io/brunovicco/ai-agents-on-docker-lab/forecast-mcp:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -355,8 +352,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/brunovicco/solar-kit:main
-            ghcr.io/brunovicco/solar-kit:sha-${{ github.sha }}
+            ghcr.io/brunovicco/ai-agents-on-docker-lab/kit:main
+            ghcr.io/brunovicco/ai-agents-on-docker-lab/kit:sha-${{ github.sha }}
 
       - name: Install cosign
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
@@ -365,9 +362,9 @@ jobs:
 
       - name: Sign the published images and kit by digest
         env:
-          APP: ghcr.io/brunovicco/solar-dispatch@${{ steps.app.outputs.digest }}
-          MCP: ghcr.io/brunovicco/solar-forecast-mcp@${{ steps.mcp.outputs.digest }}
-          KIT: ghcr.io/brunovicco/solar-kit@${{ steps.kit.outputs.digest }}
+          APP: ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch@${{ steps.app.outputs.digest }}
+          MCP: ghcr.io/brunovicco/ai-agents-on-docker-lab/forecast-mcp@${{ steps.mcp.outputs.digest }}
+          KIT: ghcr.io/brunovicco/ai-agents-on-docker-lab/kit@${{ steps.kit.outputs.digest }}
         run: |
           for ref in "$APP" "$MCP" "$KIT"; do
             cosign sign --yes "$ref"
@@ -375,9 +372,9 @@ jobs:
 
       - name: Verify each signature against this workflow's identity
         env:
-          APP: ghcr.io/brunovicco/solar-dispatch@${{ steps.app.outputs.digest }}
-          MCP: ghcr.io/brunovicco/solar-forecast-mcp@${{ steps.mcp.outputs.digest }}
-          KIT: ghcr.io/brunovicco/solar-kit@${{ steps.kit.outputs.digest }}
+          APP: ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch@${{ steps.app.outputs.digest }}
+          MCP: ghcr.io/brunovicco/ai-agents-on-docker-lab/forecast-mcp@${{ steps.mcp.outputs.digest }}
+          KIT: ghcr.io/brunovicco/ai-agents-on-docker-lab/kit@${{ steps.kit.outputs.digest }}
           IDENTITY: ${{ github.server_url }}/${{ github.workflow_ref }}
         run: |
           # workflow_ref ends in @refs/heads/main, so a signature made on another branch or by
