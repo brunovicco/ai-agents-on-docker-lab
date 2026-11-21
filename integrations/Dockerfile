@@ -12,7 +12,7 @@
 # skips the stage when RUNTIME_IMAGE points elsewhere, so a fallback build never pulls it.
 ARG RUNTIME_IMAGE=hardened-runtime
 
-FROM dhi.io/python:3.13@sha256:ab678ca8fa69d36f1386fb71f4252d1a9561b7542ca84f5d14babffebcf4f479 AS hardened-runtime
+FROM dhi.io/python:3.13@sha256:e1469187c0e6cc4b564c1e1a85cb69c90b816049e161b46d279fcd10172c12c7 AS hardened-runtime
 
 FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 AS builder
 
