@@ -8,6 +8,8 @@ A hands-on lab of Docker's tooling for AI agents: **Docker Sandboxes, sandbox ki
 
 > **Trust the verifier, not the agent.** A planner can only propose. The host decides, using data the planner cannot change and evidence of how the answer was produced.
 
+![The planner proposes in a Docker Sandbox, the host verifies, the kit blocks egress, and a worse schedule is rejected](docs/assets/sandbox-demo.gif)
+
 The task is small on purpose. A synthetic solar forecast lists four hours, and an electric vehicle needs two one-hour charging blocks. Three planners propose the hours that draw the least energy from the grid: a deterministic script and Codex inside Docker sandboxes, and a local model through Docker Agent. One verifier on the host accepts or rejects every proposal.
 
 ## Docker features in the lab
@@ -20,8 +22,9 @@ The task is small on purpose. A synthetic solar forecast lists four hours, and a
 | MCP gateway | Compares static and dynamic tool catalogs for Codex, with a decoy server | [2](docs/SANDBOX-LAB.md#2-codex-credentials-and-mcp) |
 | Docker Model Runner | Serves `ai/qwen3:4b` on the host, with no API key | [5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) |
 | Docker Agent | Defines the local planner in YAML and runs it headless with a transcript | [5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent) |
+| Compose `models` | Declares the model, the forecast server, and Docker Agent as one stack, with the agent in a read-only container | [5](docs/SANDBOX-LAB.md#the-same-planner-as-a-compose-stack) |
 | Docker Hardened Images | Runtime of the application and MCP server images | [3](docs/SANDBOX-LAB.md#3-kit-local-preview-and-supply-chain) |
-| Buildx and GHCR | Publishes multi-arch images with SBOM and provenance, and the kit as an OCI artifact | [3](docs/SANDBOX-LAB.md#published-images-and-attestations) |
+| Buildx, GHCR, and cosign | Publishes multi-arch images with SBOM and provenance, and the kit as an OCI artifact, all signed keyless | [3](docs/SANDBOX-LAB.md#published-images-and-attestations) |
 | Docker Scout | Compares the hardened runtime with the official image | [Supply chain](#supply-chain) |
 | Docker Cloud sandboxes | Runs the planner in a short-lived cloud sandbox | [4](docs/SANDBOX-LAB.md#4-cloud-execution-and-transfer) |
 
@@ -35,6 +38,8 @@ The task is small on purpose. A synthetic solar forecast lists four hours, and a
 6. **Docker Agent waits 30 seconds per turn for its tools.** A stdio MCP server started per session with `docker run` took about 44 seconds under Docker Agent, so the model ran without the tool. The same handshake took under 2 seconds from the Python MCP client. A running container that serves HTTP on loopback fixed it. [Walkthrough](docs/SANDBOX-LAB.md#check-the-process-not-only-the-result)
 7. **Local models have practical limits.** Tool-mode structured output hit `HTTP 400` from Model Runner's llama.cpp, and reasoning could not be turned off. On a fanless MacBook Air a run took 4.5 to 6 minutes while macOS throttled the chip. [Walkthrough](docs/SANDBOX-LAB.md#structured-output-and-reasoning-with-a-local-model)
 8. **The hardened runtime removed every fixable critical or high vulnerability** and shrank the application image from 218 MB to 133 MB. See [Supply chain](#supply-chain).
+9. **A kit can declare what it needs from the workload.** The kit carries its own planner and declares `requires: ["deb/python-3.14"]`, which the pinned Shell workload publishes. `sbx` v0.54.0 composed the two, and the spec's reference resolver rejected the kit on a workload without that Python. The sandbox no longer mounts the repository. [Walkthrough](docs/SANDBOX-LAB.md#a-self-contained-kit)
+10. **The agent can run contained too.** From `compose.yaml`, Docker Agent ran in a read-only container without capabilities, sharing a network namespace with the forecast server and publishing no port, and its answer was accepted after a `forecast_day` call. The image's Docker CLI lacks the `model` plugin, so the agent needs `MODEL_RUNNER_HOST` to find Model Runner. [Walkthrough](docs/SANDBOX-LAB.md#the-same-planner-as-a-compose-stack)
 
 ## Quick start
 
@@ -62,7 +67,7 @@ It plans the sandbox environment, creates a Shell microVM, runs the kit's `solar
 {"decision": "accepted", "hours": [10, 11], "grid_wh": 600}
 ```
 
-The local model experiment needs Docker Model Runner and Docker Agent v1.147.0 or later. Run `bash lab/agent.sh` after the setup in [section 5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent). Record your own transcripts with `bash lab/record.sh`, described in [Record evidence](docs/SANDBOX-LAB.md#record-evidence).
+The local model experiment needs Docker Model Runner and Docker Agent v1.147.0 or later. Run `bash lab/agent.sh` after the setup in [section 5](docs/SANDBOX-LAB.md#5-local-model-through-docker-agent), or `bash lab/agent.sh compose` to run the whole stack, Docker Agent included, from `compose.yaml`. Record your own transcripts with `bash lab/record.sh`, described in [Record evidence](docs/SANDBOX-LAB.md#record-evidence).
 
 ## How it works
 
@@ -102,6 +107,14 @@ On every push to `main`, CI publishes to GitHub Container Registry, for amd64 an
 | `ghcr.io/brunovicco/solar-forecast-mcp` | Read-only forecast and decoy MCP servers, with SBOM and provenance |
 | `ghcr.io/brunovicco/solar-kit` | Sandbox kit, with its deny-all egress policy in the manifest annotations |
 
+Each image and the kit are signed by digest with keyless cosign, bound to the `quality` workflow on `main`:
+
+```bash
+cosign verify ghcr.io/brunovicco/solar-dispatch:main \
+  --certificate-identity https://github.com/brunovicco/solar-dispatch-lab/.github/workflows/quality.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
 Dependabot keeps base image digests, actions, and Python dependencies current.
 
 ## Tested with
@@ -121,6 +134,7 @@ Dependabot keeps base image digests, actions, and Python dependencies current.
 | Path | Contents |
 | --- | --- |
 | `lab/` | Sandbox environment files, the kit, the Docker Agent planner, and the demo, probe, record, and agent scripts |
+| `compose.yaml` | The local-model planner as one stack: model, forecast server, and Docker Agent |
 | `integrations/` | Forecast and decoy MCP servers, their image, and the MCP checks |
 | `src/solar_dispatch/` | Planner, verifier, and the transcript evidence gate |
 | `docs/` | [Walkthrough](docs/SANDBOX-LAB.md), [architecture](docs/ARCHITECTURE.md), [dispatch model](docs/DISPATCH.md), and [evidence](docs/evidence/) |

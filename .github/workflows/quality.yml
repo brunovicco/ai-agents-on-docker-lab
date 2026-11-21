@@ -29,8 +29,8 @@ jobs:
       - name: Verify lockfile is up to date
         run: uv lock --check
 
-      - name: Install dependencies, including observability tests
-        run: uv sync --frozen --all-groups --extra observability
+      - name: Install dependencies
+        run: uv sync --frozen --all-groups
 
       - name: Project quality gate
         run: uv run python scripts/quality_gate.py
@@ -56,6 +56,9 @@ jobs:
           uv run --no-project --with jsonschema==4.26.0 --with pyyaml==6.0.3 \
             python scripts/validate_kit.py "$RUNNER_TEMP/sandbox-kit-spec"
 
+      - name: Validate the Compose stack for the local-model planner
+        run: docker compose config --quiet
+
       - name: Validate the Docker Agent planner against the official schema
         env:
           AGENT_SCHEMA_COMMIT: 286653cdb996035b1b160d98010ca039cebb29dc
@@ -65,8 +68,31 @@ jobs:
           uv run --no-project --with jsonschema==4.26.0 --with pyyaml==6.0.3 \
             python scripts/validate_agent.py "$RUNNER_TEMP/agent-schema.json"
 
-      - name: Build sandbox mixin
-        run: docker buildx build -f lab/solar-kit/solar-kit.yaml lab/solar-kit
+      - name: Compose the kit onto the pinned Shell workload and verify its proposal
+        run: |
+          set -o pipefail
+          workload=$(sed -n 's/^  - \(docker\.io\/sbx\/shell:[^ ]*\)$/\1/p' lab/sbxenv.yaml)
+          test -n "$workload"
+          # The kit's requires must name capabilities the pinned workload publishes.
+          docker buildx imagetools inspect --raw "$workload" |
+            uv run --no-project --with pyyaml==6.0.3 python -c '
+          import json, sys, yaml
+          index = json.load(sys.stdin)
+          provides = json.loads(index["annotations"]["vnd.docker.sandbox.kit.descriptor"])["provides"]
+          names = {entry.split("@", 1)[0] for entry in provides}
+          kit = yaml.safe_load(open("lab/solar-kit/solar-kit.yaml"))
+          missing = [need for need in kit.get("requires", []) if need.split()[0] not in names]
+          sys.exit(f"The workload does not provide {missing}" if missing else None)
+          '
+          docker buildx build -f lab/solar-kit/solar-kit.yaml --load -t solar-kit:ci lab/solar-kit
+          printf 'FROM %s\nCOPY --from=solar-kit:ci / /\n' "$workload" | docker build -t solar-shell-kit:ci -
+          docker run --rm --read-only --network none --entrypoint solar-plan \
+            -v "$PWD/lab/forecast:/forecast:ro" solar-shell-kit:ci |
+            PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
+          # The planner ships in the kit; the repository source is not in the sandbox.
+          if docker run --rm --entrypoint test solar-shell-kit:ci -e /lab-src; then
+            exit 1
+          fi
 
   container:
     runs-on: ubuntu-latest
@@ -174,6 +200,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # Keyless signing: cosign exchanges the workflow's OIDC token for a short-lived certificate.
+      id-token: write
 
     steps:
       - name: Check out repository
@@ -202,6 +230,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish application image with SBOM and provenance
+        id: app
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -218,6 +247,7 @@ jobs:
             org.opencontainers.image.description=Solar EV charging planner CLI on a Docker Hardened Image
 
       - name: Publish MCP server image with SBOM and provenance
+        id: mcp
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -235,6 +265,7 @@ jobs:
             org.opencontainers.image.description=Read-only forecast and decoy MCP servers for the Solar Dispatch Lab
 
       - name: Publish the sandbox kit
+        id: kit
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: lab/solar-kit
@@ -244,3 +275,33 @@ jobs:
           tags: |
             ghcr.io/brunovicco/solar-kit:main
             ghcr.io/brunovicco/solar-kit:sha-${{ github.sha }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: v3.1.4
+
+      - name: Sign the published images and kit by digest
+        env:
+          APP: ghcr.io/brunovicco/solar-dispatch@${{ steps.app.outputs.digest }}
+          MCP: ghcr.io/brunovicco/solar-forecast-mcp@${{ steps.mcp.outputs.digest }}
+          KIT: ghcr.io/brunovicco/solar-kit@${{ steps.kit.outputs.digest }}
+        run: |
+          for ref in "$APP" "$MCP" "$KIT"; do
+            cosign sign --yes "$ref"
+          done
+
+      - name: Verify each signature against this workflow's identity
+        env:
+          APP: ghcr.io/brunovicco/solar-dispatch@${{ steps.app.outputs.digest }}
+          MCP: ghcr.io/brunovicco/solar-forecast-mcp@${{ steps.mcp.outputs.digest }}
+          KIT: ghcr.io/brunovicco/solar-kit@${{ steps.kit.outputs.digest }}
+          IDENTITY: ${{ github.server_url }}/${{ github.workflow_ref }}
+        run: |
+          # workflow_ref ends in @refs/heads/main, so a signature made on another branch or by
+          # another workflow does not verify.
+          for ref in "$APP" "$MCP" "$KIT"; do
+            cosign verify "$ref" --certificate-identity "${IDENTITY}" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null
+            echo "Verified $ref"
+          done

@@ -6,12 +6,6 @@ additionalWorkspaces:
   - path: ./forecast
     target: /forecast
     readOnly: true
-  - path: ../src
-    target: /lab-src
-    readOnly: true
-env:
-  PYTHONPATH: /lab-src
-  PYTHONDONTWRITEBYTECODE: "1"
 sandboxOptions:
   cpus: 2
   memory: 4g

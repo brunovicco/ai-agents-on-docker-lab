@@ -13,7 +13,7 @@ sbx ls
 sbx inspect solar-dispatch
 ```
 
-The `shell` agent is itself a v3 workload kit, `docker.io/sbx/shell`, built on a Docker Hardened Image (`dhi/shell`, Debian 13). The lab's kit installs `solar-plan`. The Shell sandbox runs it against the read-only forecast at `/forecast/day.json` and sends a proposal to the host verifier. The workspace is writable. The source at `/lab-src` is read-only.
+The `shell` agent is itself a v3 workload kit, `docker.io/sbx/shell`, built on a Docker Hardened Image (`dhi/shell`, Debian 13). The lab's kit installs `solar-plan` together with its own copy of the planner, taken from the published application image pinned by digest. The Shell sandbox runs it against the read-only forecast at `/forecast/day.json` and sends a proposal to the host verifier. The workspace is writable, and neither the repository nor the verifier is in the sandbox.
 
 The kit also declares the planner's network policy: it denies all runtime egress. The policy lives in `lab/solar-kit/solar-kit.yaml`, next to the tool it constrains, so it is versioned and reviewed with the code. Test it against `github.com`, a host that the `balanced` global policy allows.
 
@@ -45,14 +45,14 @@ Most readers cannot run a microVM, so keep a transcript of what the sandbox did.
 bash lab/record.sh
 ```
 
-After the section 2 experiments, add sandbox names to capture their MCP mode, for example `bash lab/record.sh solar-codex solar-dispatch-codex`. The transcript goes to `docs/evidence/<date>-local.md`, or to the path in `SOLAR_EVIDENCE`. Each run replaces that file. Review the transcript before committing it, because `sbx` output can include usernames and host paths. For a terminal recording, wrap the demo with `asciinema rec docs/evidence/demo.cast -c "bash lab/demo.sh sandbox"`.
+After the section 2 experiments, add sandbox names to capture their MCP mode, for example `bash lab/record.sh solar-codex solar-dispatch-codex`. The transcript goes to `docs/evidence/<date>-local.md`, or to the path in `SOLAR_EVIDENCE`. Each run replaces that file. Review the transcript before committing it, because `sbx` output can include usernames and host paths. For a terminal recording, `lab/demo.tape` scripts one with [VHS](https://github.com/charmbracelet/vhs): it runs the sandbox planner, the host verification, the blocked request, the policy check, and a rejected proposal, and waits for each output instead of sleeping a fixed time. Render it with `vhs lab/demo.tape` on the same host; the GIF goes to `docs/assets/sandbox-demo.gif`. Because the tape is code, the recording can be regenerated after any change and reviewed like the scripts it runs.
 
 ## 2. Codex, credentials, and MCP
 
 Build the forecast server image and check it over the MCP stdio transport. `sbx` runs stdio servers on the host, outside sandbox isolation, so every registration in this section launches the server through Docker without network, on a read-only filesystem, without capabilities, and as a non-root user. The image contains the server code and the synthetic fixture, and nothing else from the host.
 
 ```bash
-uv sync --frozen --all-groups --extra observability --extra mcp
+uv sync --frozen --all-groups --extra mcp
 docker build -f integrations/Dockerfile -t solar-forecast-mcp:dev .
 uv run --extra mcp python integrations/check_mcp.py --image solar-forecast-mcp:dev
 ```
@@ -149,6 +149,26 @@ docker buildx build --builder solar-attest --sbom=true --provenance=mode=max --o
 docker buildx rm solar-attest
 ```
 
+### A self-contained kit
+
+The mixin does not reach into the repository. Its build copies the planner modules from the published application image, pinned by digest, and lands them in `/opt/solar-dispatch` next to `solar-plan`. The sandbox therefore mounts only the forecast and the workspace, and `bash lab/probe.sh` fails if the repository source is visible inside it.
+
+The planner still needs an interpreter, and the kit says so. `requires: ["deb/python-3.14"]` names the Debian package that the pinned `sbx/shell` 1.1.0 workload lists in its published `provides`, so a workload without it fails at resolution rather than on the first run. The kit also declares `provides: ["io.github.brunovicco/solar-plan"]` under a namespace of its own and a `version`. The reference resolver in `docker/sandbox-kit-spec` accepted the pair and rejected the same kit on a workload with the Python entries removed: `./solar-kit requires "deb/python-3.14" but nothing in the set provides it`. With `sbx` v0.54.0 the sandbox assembled the two kits into one image, `solar-plan` ran from the kit and was accepted with hours 10 and 11, and the probe confirmed that the repository source is absent.
+
+CI repeats the composition without `sbx`. It checks that each `requires` entry appears in the workload's published descriptor, lays the kit over the pinned workload image, runs `solar-plan` with no network on a read-only filesystem, and verifies the proposal on the host. To do the same locally:
+
+```bash
+docker buildx build -f lab/solar-kit/solar-kit.yaml --load -t solar-kit:dev lab/solar-kit
+printf 'FROM %s\nCOPY --from=solar-kit:dev / /\n' \
+  "$(sed -n 's/^  - \(docker\.io\/sbx\/shell:[^ ]*\)$/\1/p' lab/sbxenv.yaml)" |
+  docker build -t solar-shell-kit:dev -
+docker run --rm --read-only --network none --entrypoint solar-plan \
+  -v "$PWD/lab/forecast:/forecast:ro" solar-shell-kit:dev |
+  PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
+```
+
+When the planner changes, publish it, then move the `FROM ghcr.io/brunovicco/solar-dispatch` pin in the kit to the new `sha-<commit>` digest.
+
 ### Published images and attestations
 
 On every push to `main`, CI publishes the application image, the MCP server image, and the sandbox kit to GitHub Container Registry for `linux/amd64` and `linux/arm64`, so they run natively on Apple silicon. The images carry an SBOM and maximal provenance from Buildx. The kit keeps its v3 descriptor, including the deny-all egress policy, in the manifest annotations.
@@ -159,6 +179,16 @@ docker buildx imagetools inspect ghcr.io/brunovicco/solar-dispatch:main --format
 docker buildx imagetools inspect ghcr.io/brunovicco/solar-forecast-mcp:main
 docker buildx imagetools inspect ghcr.io/brunovicco/solar-kit:main --raw
 ```
+
+CI then signs each image and the kit by digest with keyless cosign. The certificate binds the signature to this repository's `quality` workflow on `main`, and the signature is logged in the public Sigstore transparency log. CI verifies all three signatures before the job ends. To check one yourself with [cosign](https://docs.sigstore.dev/cosign/system_config/installation/):
+
+```bash
+cosign verify ghcr.io/brunovicco/solar-dispatch:main \
+  --certificate-identity https://github.com/brunovicco/solar-dispatch-lab/.github/workflows/quality.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+A signature made by another workflow, on another branch, or in a fork does not match that identity, so the command fails for it.
 
 Each build is also tagged `sha-<commit>`. To run the published kit instead of the local source, replace `source: ./solar-kit` in `lab/sbxenv.yaml` with `ghcr.io/brunovicco/solar-kit` pinned by digest. `sbx` accepts remote kits only from sources listed in `kit.allowedSources`, so add `ghcr.io/brunovicco/` there first.
 
@@ -207,6 +237,25 @@ bash lab/agent.sh
 
 The agent's only tool is `forecast_day`. `lab/agent.sh` starts the MCP server image from section 2 as a running container that serves streamable HTTP on `127.0.0.1:8822` only, with a read-only filesystem, no capabilities, and an unprivileged user. The server rejects requests whose `Host` header is not loopback, which blocks DNS rebinding from a browser. Publishing a port rules out `--network none`, so this container keeps the default bridge network; it holds no credentials and reads only its bundled fixture. The agent connects with `allow_private_ips: true`, because Docker Agent refuses loopback and private addresses by default. The script removes the container when it exits. `lab/agent.sh` then runs the agent once with `--safety restricted`, which runs tools annotated as read-only and denies every other tool call. The agent answers with a JSON object as text, and the host verifier enforces its exact format.
 
+### The same planner as a Compose stack
+
+`compose.yaml` declares the whole planner: the model under the top-level `models` element, the forecast server, and Docker Agent itself as a container. It needs Docker Compose 2.38 or later and Model Runner enabled; Compose pulls and configures the model, so no separate `docker model pull` or local MCP build is needed.
+
+```bash
+bash lab/agent.sh compose
+```
+
+The differences from the host run are about isolation:
+
+| | `bash lab/agent.sh` | `bash lab/agent.sh compose` |
+| --- | --- | --- |
+| Docker Agent | Host binary, with the user's files and network | Pinned `docker/docker-agent` image, read-only, no capabilities, `/tmp` as its only writable path |
+| Agent file | Read from the repository | Mounted read-only, alone |
+| Forecast server | Local build, port published on host loopback | Published signed image, no published port |
+| Model | Pulled beforehand, context set by Docker Agent | Pulled and configured by Compose from `models:` |
+
+The forecast server listens on `127.0.0.1:8822` inside its container, and the agent container joins that network namespace (`network_mode: service:forecast-mcp`). The agent therefore reaches the server at the same URL as on the host, and nothing outside the pair can reach it. The `docker/docker-agent` image contains a Docker CLI without the `model` plugin. Its `dmr` provider first asks `docker model status --json`, gets `unknown flag: --json`, and stops with `docker model runner is not available`, although Model Runner is running. `compose.yaml` therefore sets `MODEL_RUNNER_HOST`, which skips the query, to Docker Desktop's endpoint for containers, `http://model-runner.docker.internal`; set `SOLAR_MODEL_RUNNER_HOST` to override it on Docker Engine. The binding under the service's `models` also injects `PLANNER_URL` and `PLANNER_MODEL`, which the agent file does not need. CI checks that `compose.yaml` and the agent file name the same model and context size, and validates the Compose file. The Compose run was accepted with hours 10 and 11 after a `forecast_day` call, in 5 minutes 26 seconds on the same MacBook Air. See the [evidence](evidence/2026-11-20-p2-local-model.md).
+
 ### Check the process, not only the result
 
 With v1.163.0 and `ai/qwen3:4b`, the first accepted run was accepted for the wrong reason. The tool was missing, and the model guessed.
@@ -229,9 +278,11 @@ Qwen3 reasons before it answers. Neither `thinking_budget: none` nor Qwen3's `/n
 
 The agent instruction now states that the model does not know the forecast and that the host rejects answers without the tool call. A small local model can still skip the tool or miscalculate. Either way the host rejects the proposal, which is the point of the lab.
 
-CI validates `lab/agent/solar-planner.yaml` against the official Docker Agent JSON schema, pinned to a commit. Running the model needs Model Runner, so CI does not run the agent.
+CI validates `lab/agent/solar-planner.yaml` against the official Docker Agent JSON schema, pinned to a commit, and `compose.yaml` with `docker compose config`. Running the model needs Model Runner, so CI does not run the agent.
 
-## 6. Further experiments
+## 6. Not covered by this lab
+
+Nothing in this section was run for the lab, so none of it is a finding. Each row names a Docker Sandboxes area the experiments above did not touch, with the command to start from and what to look for. Treat them as leads to measure the same way: pin the versions, record the transcript, and keep only what you observed.
 
 | Area | Experiment or inspection | What to observe |
 | --- | --- | --- |

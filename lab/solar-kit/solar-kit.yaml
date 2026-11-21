@@ -3,8 +3,23 @@ schemaVersion: "3"
 kind: mixin
 displayName: Solar Dispatch
 description: Compute an EV charging proposal from the mounted forecast
+version: 0.2.0
+sourceUrl: https://github.com/brunovicco/solar-dispatch-lab
+licenses: [MIT]
+provides: ["io.github.brunovicco/solar-plan"]
+# The planner runs on the workload's Python. Debian ships it as the python-3.14 package, which
+# the pinned sbx/shell workload lists among its provides; a workload without it fails at
+# resolution instead of at the first run.
+requires: ["deb/python-3.14"]
 build: |
+  # The planner comes from the published application image, pinned by digest, so the kit carries
+  # its own copy and the sandbox needs no mount of the repository source. Bump the pin when the
+  # planner changes; CI composes the kit onto the pinned workload and verifies its proposal.
+  FROM ghcr.io/brunovicco/solar-dispatch:sha-bd54ba2f3ec163086e3218de923af1721b24c798@sha256:f9ef617696af2b445f6e04b6f4a0f0aa737860d417cd90565b16af36eb501d38 AS planner
   FROM scratch
+  COPY --from=planner /app/site-packages/solar_dispatch/__init__.py /opt/solar-dispatch/solar_dispatch/
+  COPY --from=planner /app/site-packages/solar_dispatch/domain/__init__.py /app/site-packages/solar_dispatch/domain/dispatch.py /opt/solar-dispatch/solar_dispatch/domain/
+  COPY --from=planner /app/site-packages/solar_dispatch/entrypoints/__init__.py /app/site-packages/solar_dispatch/entrypoints/dispatch.py /opt/solar-dispatch/solar_dispatch/entrypoints/
   COPY --chmod=0755 solar-plan /usr/local/bin/solar-plan
 capabilities:
   # The planner reads mounted files only. Deny all runtime egress; deny wins over any allow.

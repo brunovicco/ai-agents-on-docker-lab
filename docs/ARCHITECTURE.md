@@ -11,49 +11,46 @@ the CLI contract.
 
 ```text
 src/solar_dispatch/
-├── domain/
-├── application/
-├── adapters/
-└── entrypoints/
+├── domain/        # dispatch.py: forecast parsing, ranking, and the exchange check
+└── entrypoints/   # dispatch.py: plan/verify CLI; agent_evidence.py: transcript gate
 ```
+
+The package uses only the standard library. The forecast MCP server and the protocol check live
+in `integrations/` and install the `mcp` extra on their own.
 
 ### Domain
 
-Pure business concepts, invariants, Value Objects, domain services, events, and domain errors.
-
-### Application
-
-Use cases, commands, queries, ports, authorization decisions, and transaction coordination.
-
-### Adapters
-
-Implementations of application ports for databases, messaging, HTTP, cache, storage, identity, and external SDKs.
+Integer watt-hour arithmetic over a closed forecast: no I/O, no clock, no randomness. The same
+functions rank the hours for the planner and check a proposal for the verifier, so a planner
+that runs this code still has to pass an independent check of its output on the host.
 
 ### Entrypoints
 
-HTTP, CLI, jobs, events, and serverless handlers. Entrypoints validate and translate transport data but do not own business rules.
+Command-line boundaries. `dispatch` reads a bounded proposal from stdin, rejects duplicate keys
+and non-standard constants, and translates JSON into domain calls. `agent_evidence` reads a
+Docker Agent transcript and releases the final answer only if a `forecast_day` call precedes it.
 
 ## Dependency rule
 
 ```text
-entrypoints -> application -> domain
-adapters    -> application/domain
-domain      -> no outer layer
+entrypoints -> domain
+domain      -> standard library only
 ```
+
+`scripts/validate_architecture.py` enforces the direction in the quality gate. The scaffold's
+`application/` and `adapters/` layers were removed because the lab has no use cases, ports, or
+external systems behind them; reintroduce them when a planner needs one.
 
 ## Cross-cutting decisions
 
-- Configuration: environment variables validated at startup.
-- Logging: structured events to stdout/stderr.
-- Tracing: the service-only OpenTelemetry adapter exports trace data over OTLP HTTP/protobuf only
-  when an endpoint is configured. It propagates W3C Trace Context, but not baggage, and keeps the
-  SDK lifecycle at the composition-root boundary. The separate Langfuse LLM observer remains an
-  opt-in adapter with its existing contract.
-- Errors: infrastructure errors translated at adapters; external errors mapped at entrypoints.
-- Time: UTC internally with timezone-aware values.
-- Money: `Decimal` wrapped in a domain Value Object.
-- Idempotency: required for externally visible side effects.
-- Packaging: containerized via the repo `Dockerfile` (multi-stage, uv-based); the runtime `CMD` is defined per project.
+- Trust boundary: planners run in a sandbox or container; the verifier runs on the host against
+  the original forecast and decides.
+- Input: proposals are capped at 4 KiB and parsed strictly; transcripts are capped at 64 MiB.
+- Evidence: transcripts stay on the operator's machine. Files under `docs/evidence/` record
+  metadata only: no prompts, responses, credentials, or personal data.
+- Errors: rejections exit with status 1 and a one-line reason on stderr.
+- Packaging: one multi-stage Dockerfile per image, digest-pinned bases, Docker Hardened Images
+  at runtime, published for amd64 and arm64 with SBOM, provenance, and a keyless signature.
 
 ## Diagrams
 

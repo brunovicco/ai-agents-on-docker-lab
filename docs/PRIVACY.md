@@ -16,13 +16,11 @@ Complete this document before processing personal or regulated data.
 - Encryption at rest:
 - Masking/tokenization:
 - Non-production data strategy:
-- Logging and tracing restrictions: document any enabled backend, content-capture approval,
-  redaction, retention, and access policy. Add and follow a backend-specific policy before enabling
-  content-bearing tracing. Generic OpenTelemetry spans are metadata-only: custom attributes pass
-  through a bounded allowlist and must never contain prompts, responses, credentials,
-  authorization headers, personal data, arbitrary URLs, tool output, or production payloads.
-  The public tracing wrappers enforce this policy for span and event attributes, operation names,
-  status descriptions, and exception details. W3C baggage is not propagated by default.
+- Logging and tracing restrictions: the package emits no logs or traces and ships no tracing
+  backend. Docker Agent transcripts contain the model's prompts and answers, so they stay on the
+  operator's machine. Files under `docs/evidence/` record metadata only: versions, event types
+  and counts, durations, token counts, and verdicts. Add and follow a backend-specific policy
+  before enabling any content-bearing tracing.
 - Data-subject deletion/anonymization:
 - External processors:
 - Incident-response owner:

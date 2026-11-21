@@ -228,14 +228,14 @@
         "checks": [
           ".github/workflows/quality.yml",
           "scripts/quality_gate.py",
-          "tests/unit/test_logging.py",
-          "tests/unit/test_observability.py"
+          "tests/unit/test_agent_evidence.py",
+          "lab/record.sh"
         ],
         "frequency": "continuous",
         "type": "automated"
       },
       "category": "observability",
-      "description": "AI observability is metadata-only by default and excludes prompts, responses, credentials, and personal data.",
+      "description": "AI evidence is metadata-only by default: transcripts stay local, and recorded evidence excludes prompts, responses, credentials, and personal data.",
       "id": "CPH-OBS-001",
       "mappings": [
         {

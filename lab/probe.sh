@@ -15,7 +15,9 @@ except OSError as exc:
 else:
     handle.close()
     raise SystemExit("FAIL: forecast opened for writing")
-print("PASS: writable desk, read-only forecast")
+if Path("/lab-src").exists():
+    raise SystemExit("FAIL: repository source is mounted")
+print("PASS: writable desk, read-only forecast, no repository source")
 '
 # The kit denies all runtime egress, including hosts that the global policy allows.
 sbx policy check network --sandbox solar-dispatch github.com
