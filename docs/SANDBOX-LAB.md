@@ -130,7 +130,7 @@ For Codex sign-in, use `sbx secret set openai --oauth` or the `sbx secret set op
 
 ## 3. Kit, local preview, and supply chain
 
-The environment selects a v3 mixin with an executable, an egress policy, and context for the agent. Build the mixin with the official Buildx frontend. Both Dockerfiles pin their base images and build tools by digest. They build with uv on the Docker Official Python image and run on a Docker Hardened Image, `dhi.io/python:3.13`, which has no shell or package manager and runs as user 65532. Pulling it requires `docker login dhi.io` with a Docker account. Without that access, pass `--build-arg RUNTIME_IMAGE=` with the `python:3.13-slim` reference from the `FROM … AS builder` line to build on the official image instead.
+The environment selects a v3 mixin with an executable, an egress policy, and context for the agent. Build the mixin with the official Buildx frontend. Both Dockerfiles pin their base images and build tools by digest. They build with uv on the Docker Official Python image and run on a Docker Hardened Image, `dhi.io/python:3.13`, which has no shell or package manager and runs as user 65532. Pulling it requires `docker login dhi.io` with a Docker account. Without that access, pass `--build-arg RUNTIME_IMAGE=` with the `docker.io/library/python:3.13-slim` reference from the `FROM … AS builder` line to build on the official image instead.
 
 ```bash
 docker login dhi.io
