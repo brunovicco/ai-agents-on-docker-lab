@@ -1,10 +1,20 @@
 # Keep pinned digests, actions, and locked Python dependencies current.
 version: 2
+# The hardened runtime lives on dhi.io, which needs a Docker account. Store the same values as the
+# Actions secrets under Settings > Secrets and variables > Dependabot.
+registries:
+  dhi:
+    type: docker-registry
+    url: dhi.io
+    username: ${{secrets.DOCKERHUB_USERNAME}}
+    password: ${{secrets.DOCKERHUB_TOKEN}}
 updates:
   - package-ecosystem: docker
     directories:
       - /
       - /integrations
+    registries:
+      - dhi
     schedule:
       interval: weekly
     commit-message:
@@ -19,6 +29,8 @@ updates:
     # minor or major version is a deliberate change. Dependabot still updates digests.
     ignore:
       - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: dhi.io/python
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # The Docker Agent image in compose.yaml, pinned by version and digest.

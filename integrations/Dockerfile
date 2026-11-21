@@ -8,7 +8,11 @@
 # Without dhi.io access, reuse the builder image as the runtime:
 #   --build-arg RUNTIME_IMAGE=<the python:3.13-slim reference in the builder FROM line>
 
-ARG RUNTIME_IMAGE=dhi.io/python:3.13@sha256:ab678ca8fa69d36f1386fb71f4252d1a9561b7542ca84f5d14babffebcf4f479
+# The hardened runtime is a named stage so Dependabot sees its digest on a FROM line. BuildKit
+# skips the stage when RUNTIME_IMAGE points elsewhere, so a fallback build never pulls it.
+ARG RUNTIME_IMAGE=hardened-runtime
+
+FROM dhi.io/python:3.13@sha256:ab678ca8fa69d36f1386fb71f4252d1a9561b7542ca84f5d14babffebcf4f479 AS hardened-runtime
 
 FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 AS builder
 

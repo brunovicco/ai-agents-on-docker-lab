@@ -72,5 +72,36 @@ After: `sha-a9963ff`, standard library only.
 | `ghcr.io/brunovicco/solar-dispatch:sha-bd54ba2…` | 133.4 MB | 120.1 MB | 26.7 MB |
 | `ghcr.io/brunovicco/solar-dispatch:sha-a9963ff…` | 117.4 MB | 103.5 MB | 22.6 MB |
 
-The arm64 size before matches the 133 MB measured locally above. Scout was not rerun: the hardened
-base is unchanged, and the removed packages are Python libraries outside the base image.
+The arm64 size before matches the 133 MB measured locally above.
+
+## Scout on the published image, 2026-11-21
+
+The earlier Scout runs evaluated base image tags. This one evaluated the published application
+image, built on the hardened digest pinned on 2026-11-20 (`ab678ca8…`).
+
+```text
+$ docker scout quickview ghcr.io/brunovicco/solar-dispatch:sha-a9963ff4958fdae819868b3c93d5a341c96e6606 --platform linux/arm64
+    ✓ SBOM obtained from attestation, 74 packages found
+    ✓ Provenance obtained from attestation
+
+ Target     │ ghcr.io/brunovicco/solar-dispatch:sha-a9963ff… │   0C   9H   20M   23L
+   digest   │ 506fb1b76afd                                    │
+ Base image │ dhi.io/python:3.13                              │
+
+Policy status FAILED (4/7 policies met)
+Health score C (61%)
+
+ ✓ │ Default non-root user                          │
+ ! │ Copyleft licensed packages found               │    57 packages
+ ! │ Fixable critical or high vulnerabilities found │   0C   3H   0M   0L
+ ✓ │ No high-profile vulnerabilities                │   0C   0H   0M   0L
+ ! │ Outdated base images found                     │
+ ✓ │ No unapproved base images                      │    0 deviations
+ ✓ │ Supply chain attestations                      │    0 deviations
+```
+
+The pinned digest had fallen behind within a day. Dependabot had updated the `python:3.13-slim`
+builder twice but never the hardened runtime: its digest sat in an `ARG` default, which Dependabot
+does not parse, on a registry Dependabot had no credentials for. The fix moves the digest onto a
+`FROM … AS hardened-runtime` line, gives Dependabot a `dhi.io` registry, and adds a CI step that
+fails on any fixable critical or high vulnerability in either built image.
