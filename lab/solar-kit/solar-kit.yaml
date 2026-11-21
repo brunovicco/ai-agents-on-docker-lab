@@ -16,7 +16,7 @@ build: |
   # its own copy and the sandbox needs no mount of the repository source. Bump the pin when the
   # planner changes. CI verifies that the publish job on main signed this digest, then composes
   # the kit onto the pinned workload and verifies its proposal.
-  FROM ghcr.io/brunovicco/solar-dispatch:sha-a9963ff4958fdae819868b3c93d5a341c96e6606@sha256:1c49627aad0bdac2b883c25f0ac5515eaf8ecf38c8d79da68819fb0123d9cd0f AS planner
+  FROM ghcr.io/brunovicco/ai-agents-on-docker-lab/dispatch:sha-482805dc90ebdcf8c538a8d0ea2e3da8cb9be8c1@sha256:9fa55061411306f5f071d3023567c43a4b1f09912228aeccd4774b502575f756 AS planner
   FROM scratch
   COPY --from=planner /app/site-packages/solar_dispatch/__init__.py /opt/solar-dispatch/solar_dispatch/
   COPY --from=planner /app/site-packages/solar_dispatch/domain/__init__.py /app/site-packages/solar_dispatch/domain/dispatch.py /opt/solar-dispatch/solar_dispatch/domain/
