@@ -32,3 +32,6 @@ credentials/
 *.oci.tar
 lab/desk/*
 !lab/desk/TASK.md
+
+# Video render of lab/demo.tape, for upload elsewhere; the README embeds the GIF
+docs/assets/*.mp4
