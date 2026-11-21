@@ -147,3 +147,17 @@ Three earlier designs failed, each for a reason worth knowing:
     Policy                                       Analyzed  Comparison  Change
     No fixable critical or high vulnerabilities  ! 3       ! 3         No Change
 ```
+
+## The glibc fix reaches the hardened base, 2026-11-21
+
+Later the same day Dependabot, now with `dhi.io` credentials, proposed `dhi.io/python:3.13@sha256:fabe521c…`
+(#19). Its first attempt also wrote an empty digest into the builder line, because both `FROM` lines
+named `python`; the builder now names `docker.io/library/python` in full (#22), and the recreated PR
+changed only the hardened stage. The CI gate on that PR printed:
+
+```text
+solar-dispatch:ci adds none; 1 come from the hardened base.
+```
+
+The glibc CVEs, CVE-2026-19499 and CVE-2026-5435, are gone. The remaining finding is setuptools 70.3.0
+(CVE-2025-47273, fixed in 78.1.1), which the base ships and the planner does not import.
