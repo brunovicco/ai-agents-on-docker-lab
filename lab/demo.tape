@@ -3,8 +3,10 @@
 #
 #   vhs lab/demo.tape
 #
-# The setup creates or reuses the solar-dispatch sandbox off camera. Review the GIF before
-# committing it: the commands print no host paths, but check anyway.
+# Create the sandbox first with `bash lab/demo.sh sandbox`, which asks to approve the plan; the
+# tape only starts it off camera. Review the GIF before committing it: the commands print no host
+# paths, but check anyway. Wait patterns never appear in the typed commands, so a wait cannot
+# match the command line instead of its output.
 
 Output docs/assets/sandbox-demo.gif
 
@@ -21,9 +23,10 @@ Set WaitTimeout 60s
 
 Hide
 Type "export PS1='$ ' PYTHONPATH=src && clear" Enter
-Type "bash lab/demo.sh sandbox >/dev/null 2>&1; clear; echo ready" Enter
-Wait+Screen@10m /ready/
+Type "sbx env exec lab/sbxenv.yaml -- true </dev/null >/dev/null 2>&1 && clear && echo sandbox-'up'" Enter
+Wait+Screen@5m /sandbox-up/
 Type "clear" Enter
+Sleep 500ms
 Show
 
 Type "# The planner runs inside a Docker Sandbox and can only propose." Enter

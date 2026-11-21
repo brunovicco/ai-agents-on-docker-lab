@@ -31,16 +31,21 @@ services:
         condition: service_healthy
     network_mode: service:forecast-mcp
     # Binding the model makes the dependency explicit and injects PLANNER_URL and PLANNER_MODEL.
-    # Inside a container, Docker Agent's dmr provider finds the same Model Runner endpoint itself.
     models: [planner]
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     tmpfs: [/tmp]
     environment:
+      # The image's Docker CLI has no model plugin, so Docker Agent's own discovery fails with
+      # "docker model runner is not available". MODEL_RUNNER_HOST skips that query. The default
+      # is Docker Desktop's endpoint for containers; Docker Engine on Linux usually serves Model
+      # Runner at http://172.17.0.1:12434.
+      MODEL_RUNNER_HOST: ${SOLAR_MODEL_RUNNER_HOST:-http://model-runner.docker.internal}
       HOME: /tmp
       TELEMETRY_ENABLED: "false"
       DOCKER_AGENT_AUTO_UPDATE: "false"
+      DOCKER_AGENT_HIDE_TELEMETRY_BANNER: "1"
     volumes:
       - ./lab/agent:/work:ro
     command:
