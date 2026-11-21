@@ -225,15 +225,30 @@ jobs:
               -e HOME=/scout -e DOCKER_CONFIG=/scout -e DOCKER_SCOUT_HUB_USER -e DOCKER_SCOUT_HUB_PASSWORD \
               -v "$config:/scout" -v /var/run/docker.sock:/var/run/docker.sock:ro "$SCOUT" "$@"
           }
+          # Scan the hardened base the same way as the images, from the local store, so both
+          # sides get the same VEX treatment. Compare CVE IDs: package attribution can move
+          # between binary packages of one source, such as glibc and libc6.
+          set -o pipefail
+          docker pull -q "$HARDENED_BASE" >/dev/null
+          fixable_ids() {
+            scout cves "local://$1" --only-fixed --only-severity critical,high --format sarif \
+              --output "/scout/$2.sarif" >/dev/null
+            jq -r '.runs[].results[].ruleId' "$config/$2.sarif" | LC_ALL=C sort -u
+          }
+          fixable_ids "$HARDENED_BASE" base > "$config/base.ids"
           status=0
           for image in solar-dispatch:ci solar-forecast-mcp:ci; do
             echo "## $image" >> "$GITHUB_STEP_SUMMARY"
             scout cves "local://$image" --only-fixed --only-severity critical,high --format markdown |
               tee -a "$GITHUB_STEP_SUMMARY"
-            # Fails only when the image has more fixable critical or high vulnerabilities than
-            # the hardened base it is built on.
-            scout compare "local://$image" --to "registry://$HARDENED_BASE" --only-fixed \
-              --only-severity critical,high --exit-on vulnerability || status=1
+            fixable_ids "$image" "${image%%:*}" > "$config/image.ids"
+            added=$(LC_ALL=C comm -13 "$config/base.ids" "$config/image.ids" | paste -sd ' ' -)
+            if [ -n "$added" ]; then
+              echo "::error::$image adds fixable critical or high vulnerabilities to its base: $added"
+              status=1
+            else
+              echo "$image adds none; $(wc -l < "$config/image.ids") come from the hardened base."
+            fi
           done
           exit "$status"
 
