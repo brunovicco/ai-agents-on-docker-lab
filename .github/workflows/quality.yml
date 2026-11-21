@@ -144,7 +144,7 @@ jobs:
         run: |
           echo "::warning::DOCKERHUB_USERNAME is not set, so the images run on the Docker Official Python image instead of DHI"
           # Reuse the builder image, so Dependabot's digest updates apply to the fallback too.
-          builder=$(sed -n 's/^FROM \(python:3\.13-slim@sha256:[0-9a-f]*\) AS builder$/\1/p' Dockerfile)
+          builder=$(sed -n 's/^FROM \(docker\.io\/library\/python:3\.13-slim@sha256:[0-9a-f]*\) AS builder$/\1/p' Dockerfile)
           test -n "$builder"
           echo "RUNTIME_ARG=--build-arg RUNTIME_IMAGE=$builder" >> "$GITHUB_ENV"
 

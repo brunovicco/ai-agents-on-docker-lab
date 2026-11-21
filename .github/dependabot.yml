@@ -1,5 +1,7 @@
 # Keep pinned digests, actions, and locked Python dependencies current.
 version: 2
+# The builder FROM lines name docker.io/library/python in full: with a bare "python", Dependabot
+# treated the builder and the dhi.io runtime as one dependency and wrote an empty builder digest.
 # The hardened runtime lives on dhi.io, which needs a Docker account. Store the same values as the
 # Actions secrets under Settings > Secrets and variables > Dependabot.
 registries:
@@ -29,6 +31,10 @@ updates:
     # minor or major version is a deliberate change. Dependabot still updates digests.
     ignore:
       - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: library/python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: docker.io/library/python
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: dhi.io/python
         update-types: ["version-update:semver-major", "version-update:semver-minor"]

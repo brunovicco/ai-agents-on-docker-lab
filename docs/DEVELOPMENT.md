@@ -48,7 +48,7 @@ the project, not as an editable link, into `site-packages`. The runtime stage co
 packages and the bundled forecast onto `dhi.io/python:3.13`, a Docker Hardened Image without a
 shell or package manager, and runs the dispatch CLI as user 65532. With its default arguments it
 emits a proposal for the bundled forecast. Without `dhi.io` access, pass `--build-arg RUNTIME_IMAGE=`
-with the `python:3.13-slim` reference from the `FROM … AS builder` line, so the runtime matches the builder.
+with the `docker.io/library/python:3.13-slim` reference from the `FROM … AS builder` line, so the runtime matches the builder.
 
 The `container` CI job builds the application and MCP images, runs the application without network
 on a read-only filesystem, verifies its proposal on the runner, checks the runtime user, confirms
