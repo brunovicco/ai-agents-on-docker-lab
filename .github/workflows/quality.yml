@@ -75,16 +75,14 @@ jobs:
 
       - name: Verify the signature of the planner image the kit copies from
         env:
-          # Signatures made before the repository was renamed carry its former name. Accept the
-          # former name only until the kit is pinned to an image published under the new one.
-          IDENTITY: ^${{ github.server_url }}/brunovicco/(ai-agents-on-docker-lab|solar-dispatch-lab)/\.github/workflows/quality\.yml@refs/heads/main$
+          IDENTITY: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/quality.yml@refs/heads/main
         run: |
           # The kit takes its planner from a published image; accept it only if this repository's
           # publish job on main signed that exact digest.
           image=$(sed -n 's/^ *FROM \(ghcr\.io\/brunovicco\/[^:]*\):[^@]*@\(sha256:[0-9a-f]*\) AS planner$/\1@\2/p' \
             lab/solar-kit/solar-kit.yaml)
           test -n "$image"
-          cosign verify "$image" --certificate-identity-regexp "$IDENTITY" \
+          cosign verify "$image" --certificate-identity "$IDENTITY" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null
           echo "Verified $image"
 
