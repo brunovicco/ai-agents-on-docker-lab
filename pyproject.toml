@@ -1,5 +1,5 @@
 [project]
-name = "solar-dispatch-lab"
+name = "ai-agents-on-docker-lab"
 version = "0.1.0"
 description = "Solar EV charging schedules with independent verification and Docker Sandboxes"
 readme = "README.md"

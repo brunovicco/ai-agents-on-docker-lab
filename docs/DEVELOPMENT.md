@@ -39,8 +39,8 @@ exit with status 1 because a lower-cost schedule is available. See the
 
 ```bash
 docker login dhi.io
-docker build -t solar-dispatch-lab .
-docker run --rm --read-only --network none solar-dispatch-lab
+docker build -t solar-dispatch:dev .
+docker run --rm --read-only --network none solar-dispatch:dev
 ```
 
 The Dockerfile uses uv on the Docker Official Python image to install the locked dependencies and
@@ -74,7 +74,7 @@ The project started from the [Codex Python Engineering Harness](https://github.c
 v1.2.1 using the `service` and `agentic` profiles. The original generator metadata is in
 `.harness.json`. The scaffold's OpenTelemetry, Langfuse, and structured-logging adapters, with
 their tests and the empty application layer, were removed because the dispatch flow never used
-them; `.harness.json` still lists them as generated files. The following command reproduces the scaffold from that checkout:
+them; `.harness.json` still lists them as generated files. The project was named `solar-dispatch-lab` then. The following command reproduces the scaffold from that checkout:
 
 ```bash
 python3 bootstrap.py --name solar-dispatch-lab --package solar_dispatch \

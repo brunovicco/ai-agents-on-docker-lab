@@ -2,7 +2,7 @@
 
 ## Context
 
-Solar Dispatch Lab schedules one-hour EV charging blocks from a synthetic forecast. A planner or
+The AI Agents on Docker Lab schedules one-hour EV charging blocks from a synthetic forecast. A planner or
 Codex agent proposes a schedule inside a Docker sandbox. The operator runs the verifier on the
 host using the original forecast. The [dispatch model](DISPATCH.md) explains the calculation and
 the CLI contract.

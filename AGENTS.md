@@ -1,4 +1,4 @@
-# solar-dispatch-lab engineering contract
+# ai-agents-on-docker-lab engineering contract
 
 ## Project
 
