@@ -68,6 +68,24 @@ jobs:
           uv run --no-project --with jsonschema==4.26.0 --with pyyaml==6.0.3 \
             python scripts/validate_agent.py "$RUNNER_TEMP/agent-schema.json"
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: v3.1.4
+
+      - name: Verify the signature of the planner image the kit copies from
+        env:
+          IDENTITY: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/quality.yml@refs/heads/main
+        run: |
+          # The kit takes its planner from a published image; accept it only if this repository's
+          # publish job on main signed that exact digest.
+          ref=$(sed -n 's/^ *FROM ghcr\.io\/brunovicco\/solar-dispatch:[^@]*@\(sha256:[0-9a-f]*\) AS planner$/\1/p' \
+            lab/solar-kit/solar-kit.yaml)
+          test -n "$ref"
+          cosign verify "ghcr.io/brunovicco/solar-dispatch@$ref" --certificate-identity "$IDENTITY" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null
+          echo "Verified ghcr.io/brunovicco/solar-dispatch@$ref"
+
       - name: Compose the kit onto the pinned Shell workload and verify its proposal
         run: |
           set -o pipefail

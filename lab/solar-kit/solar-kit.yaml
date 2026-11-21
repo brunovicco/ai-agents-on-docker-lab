@@ -14,8 +14,9 @@ requires: ["deb/python-3.14"]
 build: |
   # The planner comes from the published application image, pinned by digest, so the kit carries
   # its own copy and the sandbox needs no mount of the repository source. Bump the pin when the
-  # planner changes; CI composes the kit onto the pinned workload and verifies its proposal.
-  FROM ghcr.io/brunovicco/solar-dispatch:sha-bd54ba2f3ec163086e3218de923af1721b24c798@sha256:f9ef617696af2b445f6e04b6f4a0f0aa737860d417cd90565b16af36eb501d38 AS planner
+  # planner changes. CI verifies that the publish job on main signed this digest, then composes
+  # the kit onto the pinned workload and verifies its proposal.
+  FROM ghcr.io/brunovicco/solar-dispatch:sha-a9963ff4958fdae819868b3c93d5a341c96e6606@sha256:1c49627aad0bdac2b883c25f0ac5515eaf8ecf38c8d79da68819fb0123d9cd0f AS planner
   FROM scratch
   COPY --from=planner /app/site-packages/solar_dispatch/__init__.py /opt/solar-dispatch/solar_dispatch/
   COPY --from=planner /app/site-packages/solar_dispatch/domain/__init__.py /app/site-packages/solar_dispatch/domain/dispatch.py /opt/solar-dispatch/solar_dispatch/domain/

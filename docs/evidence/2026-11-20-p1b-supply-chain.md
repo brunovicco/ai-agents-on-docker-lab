@@ -60,3 +60,17 @@ Health score  A  (94%)
  ✓      │ No unapproved base images                   │    0 deviations
  ✓      │ Supply chain attestations                   │    0 deviations
 ```
+
+## Published image sizes after removing unused dependencies
+
+Measured 2026-11-21 by pulling each platform manifest of the published application image by digest
+on a Linux host. Before: `sha-bd54ba2`, with pydantic, pydantic-settings, and structlog installed.
+After: `sha-a9963ff`, standard library only.
+
+| Image | linux/arm64 | linux/amd64 | Compressed layers, arm64 |
+| --- | ---: | ---: | ---: |
+| `ghcr.io/brunovicco/solar-dispatch:sha-bd54ba2…` | 133.4 MB | 120.1 MB | 26.7 MB |
+| `ghcr.io/brunovicco/solar-dispatch:sha-a9963ff…` | 117.4 MB | 103.5 MB | 22.6 MB |
+
+The arm64 size before matches the 133 MB measured locally above. Scout was not rerun: the hardened
+base is unchanged, and the removed packages are Python libraries outside the base image.

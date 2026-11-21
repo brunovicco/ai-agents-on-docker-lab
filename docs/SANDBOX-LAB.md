@@ -155,7 +155,7 @@ The mixin does not reach into the repository. Its build copies the planner modul
 
 The planner still needs an interpreter, and the kit says so. `requires: ["deb/python-3.14"]` names the Debian package that the pinned `sbx/shell` 1.1.0 workload lists in its published `provides`, so a workload without it fails at resolution rather than on the first run. The kit also declares `provides: ["io.github.brunovicco/solar-plan"]` under a namespace of its own and a `version`. The reference resolver in `docker/sandbox-kit-spec` accepted the pair and rejected the same kit on a workload with the Python entries removed: `./solar-kit requires "deb/python-3.14" but nothing in the set provides it`. With `sbx` v0.54.0 the sandbox assembled the two kits into one image, `solar-plan` ran from the kit and was accepted with hours 10 and 11, and the probe confirmed that the repository source is absent.
 
-CI repeats the composition without `sbx`. It checks that each `requires` entry appears in the workload's published descriptor, lays the kit over the pinned workload image, runs `solar-plan` with no network on a read-only filesystem, and verifies the proposal on the host. To do the same locally:
+CI repeats the composition without `sbx`. It first verifies with cosign that this repository's publish job on `main` signed the application image digest the kit copies from, then checks that each `requires` entry appears in the workload's published descriptor, lays the kit over the pinned workload image, runs `solar-plan` with no network on a read-only filesystem, and verifies the proposal on the host. To do the same locally:
 
 ```bash
 docker buildx build -f lab/solar-kit/solar-kit.yaml --load -t solar-kit:dev lab/solar-kit
@@ -167,7 +167,7 @@ docker run --rm --read-only --network none --entrypoint solar-plan \
   PYTHONPATH=src python3 -m solar_dispatch.entrypoints.dispatch verify lab/forecast/day.json
 ```
 
-When the planner changes, publish it, then move the `FROM ghcr.io/brunovicco/solar-dispatch` pin in the kit to the new `sha-<commit>` digest.
+When the planner changes, merge it so CI publishes and signs it, then move the `FROM ghcr.io/brunovicco/solar-dispatch` pin in the kit to the new `sha-<commit>` digest. An unsigned digest, or one signed by another workflow or branch, fails the check.
 
 ### Published images and attestations
 
