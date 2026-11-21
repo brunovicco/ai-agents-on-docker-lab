@@ -214,13 +214,16 @@ jobs:
           DOCKER_SCOUT_HUB_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           SCOUT: docker.io/docker/scout-cli:1.30.0@sha256:01f7e63d8ee0668b2c19f09920d7e7eff8d3e507ca931df2b8c00ae19b71d588
         run: |
-          # Local images come through the read-only socket; registry credentials, for the
-          # hardened base on dhi.io, through the Docker config written by the login step.
+          # Local images come through the read-only socket. Registry credentials, for the
+          # hardened base on dhi.io, come from a copy of the Docker config the login step wrote:
+          # Scout keeps its index next to the config, so the directory must be writable.
+          config=$(mktemp -d)
+          trap 'rm -rf "$config"' EXIT
+          cp "$HOME/.docker/config.json" "$config/config.json"
           scout() {
-            docker run --rm -e DOCKER_SCOUT_HUB_USER -e DOCKER_SCOUT_HUB_PASSWORD \
-              -e DOCKER_CONFIG=/docker-config -v "$HOME/.docker:/docker-config:ro" \
-              -v /var/run/docker.sock:/var/run/docker.sock:ro \
-              --group-add "$(stat -c %g /var/run/docker.sock)" "$SCOUT" "$@"
+            docker run --rm --user "$(id -u):$(stat -c %g /var/run/docker.sock)" --tmpfs /tmp:mode=1777 \
+              -e HOME=/scout -e DOCKER_CONFIG=/scout -e DOCKER_SCOUT_HUB_USER -e DOCKER_SCOUT_HUB_PASSWORD \
+              -v "$config:/scout" -v /var/run/docker.sock:/var/run/docker.sock:ro "$SCOUT" "$@"
           }
           status=0
           for image in solar-dispatch:ci solar-forecast-mcp:ci; do
