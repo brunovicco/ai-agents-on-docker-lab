@@ -60,7 +60,7 @@ Sleep 1s
 Type "sbx env exec lab/sbxenv.yaml -- curl -fsS -o /dev/null https://github.com/" Enter
 Wait+Screen /returned error/
 Sleep 1500ms
-Type "sbx policy check network --sandbox solar-dispatch github.com | grep -E 'Denied|Reason'" Enter
+Type "sbx policy check network --sandbox solar-dispatch github.com | grep ." Enter
 Wait+Screen /kit:solar-dispatch:deny/
 Sleep 2s
 
