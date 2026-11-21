@@ -103,5 +103,32 @@ Health score C (61%)
 The pinned digest had fallen behind within a day. Dependabot had updated the `python:3.13-slim`
 builder twice but never the hardened runtime: its digest sat in an `ARG` default, which Dependabot
 does not parse, on a registry Dependabot had no credentials for. The fix moves the digest onto a
-`FROM … AS hardened-runtime` line, gives Dependabot a `dhi.io` registry, and adds a CI step that
-fails on any fixable critical or high vulnerability in either built image.
+`FROM … AS hardened-runtime` line and gives Dependabot a `dhi.io` registry.
+
+## The newest hardened base, 2026-11-21
+
+Moving the pin to the current `dhi.io/python:3.13` (`sha256:e1469187…`) did not clear the findings.
+CI scanned both built images on it, linux/amd64:
+
+| Package | Fixable high | Fixed in |
+| --- | --- | --- |
+| glibc 2.41-12+deb13u4+dhi1 | CVE-2026-19499, CVE-2026-5435 | 2.41-12+deb13u5, not yet in a DHI build |
+| setuptools 70.3.0, in the base | CVE-2025-47273 | 78.1.1 |
+
+`docker scout quickview dhi.io/python:3.13` on linux/arm64 counted 2 fixable high for the base
+alone, with 42 DHI VEX exceptions applied; the scan of the built image counted 3.
+
+A gate on every fixable vulnerability would stay red until DHI ships the glibc fix. CI therefore
+reports each image's fixable critical and high vulnerabilities, base included, and fails only when
+`docker scout compare` against the pinned hardened base shows an increase. `--ignore-base` was tried
+first and failed: Scout could not identify the base of an image built with `docker build`.
+
+```text
+                     │ Analyzed Image             │ Comparison Image
+   Target            │ local://solar-dispatch:ci  │ registry://dhi.io/python:3.13
+     platform        │ linux/amd64                │ linux/amd64
+     size            │ 23 MB (+21 kB)             │ 23 MB
+     packages        │ 89 (+1)                    │ 88
+    Policy                                       Analyzed  Comparison  Change
+    No fixable critical or high vulnerabilities  ! 3       ! 3         No Change
+```
