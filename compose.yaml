@@ -25,7 +25,7 @@ services:
       retries: 30
 
   planner:
-    image: docker/docker-agent:1.163.0@sha256:ceacdce30f5c9ef04d46859acad49d03f3807825bbc6b54e2618e71f5536c11c
+    image: docker/docker-agent:1.165.0@sha256:e74fdde85f258e96db067d035757aab470604d40b715b076191de59ed7a84d26
     depends_on:
       forecast-mcp:
         condition: service_healthy
