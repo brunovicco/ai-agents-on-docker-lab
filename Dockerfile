@@ -12,7 +12,7 @@ ARG RUNTIME_IMAGE=hardened-runtime
 
 FROM dhi.io/python:3.13@sha256:fabe521c4ad1c222c0b69380e3a25acc1249e1417ae79d5fb97fddef92e2d836 AS hardened-runtime
 
-FROM docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 AS builder
+FROM docker.io/library/python:3.13-slim@sha256:7249d5587b78209a006dc4a3b5340678f84ea729239193aa559962cd8c1fce50 AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.28@sha256:0f36cb9361a3346885ca3677e3767016687b5a170c1a6b88465ec14aefec90aa /uv /bin/
 
